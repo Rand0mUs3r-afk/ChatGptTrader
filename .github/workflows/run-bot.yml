@@ -11,10 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
@@ -24,21 +22,21 @@ jobs:
           python -m pip install -e .
       - name: Test repository
         run: pytest -q
-      - name: Compare baseline, experimental pullback, and blend
-        run: python compare_strategies.py
-      - name: Publish comparison summary
+      - name: Run longer-history strategy lab
+        run: python run_strategy_lab.py
+      - name: Publish research summary
         if: always()
         run: |
-          if [ -f reports/strategy_experiment/comparison.md ]; then
-            cat reports/strategy_experiment/comparison.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f reports/strategy_lab/research.md ]; then
+            cat reports/strategy_lab/research.md >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "No completed market backtest. Inspect failed steps; no performance conclusion is available." >> "$GITHUB_STEP_SUMMARY"
+            echo "No completed research run. Inspect failures; no performance conclusion is available." >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Upload results and input snapshots
+      - name: Upload all trials, journals, and snapshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: strategy-comparison
-          path: reports/strategy_experiment/
+          name: strategy-lab-results
+          path: reports/strategy_lab/
           if-no-files-found: warn
           retention-days: 14
