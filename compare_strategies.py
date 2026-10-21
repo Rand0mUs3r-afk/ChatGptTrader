@@ -9,14 +9,15 @@ import pandas as pd
 from swingbot.backtest import simulate_trade, summarize_trades
 from swingbot.config import DEFAULT_SETTINGS
 from swingbot.data import fetch_history
-from swingbot.experimental import generate_trend_pullback, select_signals
+from swingbot.experimental import generate_trend_pullback
+from swingbot.refined import select_signals
 from swingbot.indicators import calculate_features
 from swingbot.journal import build_journal
 from swingbot.journal_report import capture_trade, enrich_journal, render_journal
 from swingbot.scanner import load_tickers
 from swingbot.strategies import generate_signals
 
-MODES = ("baseline", "experimental", "blend")
+MODES = ("baseline", "experimental", "blend", "refined")
 
 
 def main():
@@ -89,11 +90,12 @@ def main():
             result.update(mode=mode, partition=partition,
                           independent_candidate_statistics=summarize_trades(sample))
             results.append(result)
-    note = ("Each mode and partition is a separate replay with reset equity; do not sum them. "
+    note = ("Refined requires same-ticker/date baseline AND experimental agreement; blend accepts either. "
+            "Each mode and partition is a separate replay with reset equity; do not sum them. "
             "Full includes boundary trades; development/holdout exclude crossing trades. "
             "Single position, no exit-day reentry, closed-trade drawdown rather than daily MTM. "
             "Current universe has survivorship bias; no earnings/opening-gap revalidation. "
-            "Repeated holdout tuning invalidates independent validation. Not actual orders.")
+            "No development-result optimization was performed. Repeated holdout tuning invalidates independent validation. Not actual orders.")
     manifest = dict(settings=asdict(settings), snapshot_sha256=hashes, results=results, note=note,
                     first_signal_date=str(dates[0].date()), last_signal_date=str(dates[-1].date()),
                     chronological_holdout_start=str(split.date()))
