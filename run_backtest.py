@@ -27,8 +27,18 @@ def main():
     settings = DEFAULT_SETTINGS
     tickers = load_tickers("config/tickers.txt")
 
-    benchmark = fetch_benchmark(settings)
-    benchmark_close = benchmark["Close"]
+    
+benchmark = fetch_benchmark(settings)
+
+logger.info(
+    "Benchmark data range: %s to %s (%d bars)",
+    benchmark.index[0],
+    benchmark.index[-1],
+    len(benchmark),
+)
+
+benchmark_close = benchmark["Close"]
+
 
     all_trades = []
 
@@ -38,6 +48,14 @@ def main():
 
         try:
             bars = fetch_history(ticker, settings)
+            
+            logger.info(
+    "%s data range: %s to %s (%d bars)",
+    ticker,
+    bars.index[0],
+    bars.index[-1],
+    len(bars),
+)
 
             trades = backtest_ticker(
                 ticker=ticker,
