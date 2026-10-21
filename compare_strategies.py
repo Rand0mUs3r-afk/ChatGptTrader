@@ -1,4 +1,4 @@
-"""Compare fixed strategy rules on shared snapshots, without parameter tuning."""
+"""Fixed-rule comparison with full accepted-trade journals and manual execution."""
 import hashlib
 import json
 from dataclasses import asdict
@@ -12,6 +12,7 @@ from swingbot.data import fetch_history
 from swingbot.experimental import generate_trend_pullback, select_signals
 from swingbot.indicators import calculate_features
 from swingbot.journal import build_journal
+from swingbot.journal_report import capture_trade, enrich_journal, render_journal
 from swingbot.scanner import load_tickers
 from swingbot.strategies import generate_signals
 
@@ -31,8 +32,8 @@ def main():
             raise ValueError(f"Duplicate sessions for {ticker}")
         panel[ticker] = bars
         snapshot = bars.to_csv(index_label="Date")
-        safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in ticker)
-        (output / f"{safe_name}.csv").write_text(snapshot, encoding="utf-8")
+        name = "".join(c if c.isalnum() or c in "._-" else "_" for c in ticker)
+        (output / f"{name}.csv").write_text(snapshot, encoding="utf-8")
         hashes[ticker] = hashlib.sha256(snapshot.encode()).hexdigest()
     benchmark = panel[settings.benchmark]
     market_features = calculate_features(benchmark, settings=settings)
@@ -64,36 +65,41 @@ def main():
                     trade = simulate_trade(bars, index, signal, settings)
                     if trade is None:
                         continue
-                    if pd.Timestamp(trade["signal_date"]) < split <= pd.Timestamp(trade["exit_date"]):
-                        continue
-                    trade["partition"] = "holdout" if pd.Timestamp(trade["signal_date"]) >= split else "development"
+                    trade = capture_trade(trade, signal, history, market_ok, mode)
+                    if pd.Timestamp(trade["signal_date"]) >= split:
+                        trade["partition"] = "holdout"
+                    elif pd.Timestamp(trade["exit_date"]) < split:
+                        trade["partition"] = "development"
+                    else:
+                        trade["partition"] = "boundary"
                     observations[mode].append(trade)
-    results = []
+    results, sections = [], []
     for mode, rows in observations.items():
         candidates = pd.DataFrame(rows)
         candidates.to_csv(output / f"{mode}_candidates.csv", index=False)
-        for partition in ("development", "holdout"):
-            sample = candidates[candidates["partition"] == partition].copy() if rows else pd.DataFrame()
+        for partition in ("full", "development", "holdout"):
+            sample = candidates.copy() if partition == "full" or not rows else candidates[candidates["partition"] == partition].copy()
             journal, account = build_journal(sample, settings)
+            journal, account = enrich_journal(journal, account, sample)
             journal.to_csv(output / f"{mode}_{partition}_journal.csv", index=False)
+            title = f"{mode} / {partition}"
+            (output / f"{mode}_{partition}_journal.md").write_text(render_journal(journal, account, title), encoding="utf-8")
+            sections.append(render_journal(journal, account, title, include_trades=False))
             result = {k: v for k, v in account.items() if k != "mode"}
             result.update(mode=mode, partition=partition,
                           independent_candidate_statistics=summarize_trades(sample))
             results.append(result)
-    note = ("Simulation only. Single position; no exit-day reentry; closed-trade drawdown, not daily MTM. "
-            "Current tickers introduce survivorship/selection bias. No earnings or opening-gap revalidation. "
-            "Fixed hypotheses, not optimized. Reusing holdout after tuning invalidates independent validation.")
+    note = ("Each mode and partition is a separate replay with reset equity; do not sum them. "
+            "Full includes boundary trades; development/holdout exclude crossing trades. "
+            "Single position, no exit-day reentry, closed-trade drawdown rather than daily MTM. "
+            "Current universe has survivorship bias; no earnings/opening-gap revalidation. "
+            "Repeated holdout tuning invalidates independent validation. Not actual orders.")
     manifest = dict(settings=asdict(settings), snapshot_sha256=hashes, results=results, note=note,
                     first_signal_date=str(dates[0].date()), last_signal_date=str(dates[-1].date()),
                     chronological_holdout_start=str(split.date()))
     (output / "comparison.json").write_text(json.dumps(manifest, indent=2, allow_nan=False), encoding="utf-8")
-    table = ["# Strategy comparison", "", "Each partition starts with configured equity.", "",
-             "| Mode | Partition | Trades | Starting equity | Final equity | Return | Closed-trade DD |",
-             "| :--- | :--- | ---: | ---: | ---: | ---: | ---: |"]
-    for row in results:
-        table.append(f"| {row['mode']} | {row['partition']} | {row['trades']} | {row['starting_equity']:,.2f} | "
-                     f"{row['final_equity']:,.2f} | {row['return_pct']:+.2f}% | {row['max_closed_trade_drawdown_pct']:.2f}% |")
-    text = "\n".join(table) + "\n\n" + note + "\n"
+    text = "# Strategy trading journals\n\n" + note + "\n\n" + "\n".join(sections)
+    text += "\nTrade-by-trade reasons and indicator snapshots are in the *_journal.md and CSV files in the strategy-comparison artifact.\n"
     (output / "comparison.md").write_text(text, encoding="utf-8")
     print(text)
 
