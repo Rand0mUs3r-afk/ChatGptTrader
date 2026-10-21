@@ -6,7 +6,7 @@ from dataclasses import dataclass
 class Settings:
     # Market data
     benchmark: str = "SPY"
-    period: str = "2y"
+    period: str = "5y"
     interval: str = "1d"
     minimum_history: int = 220
 
