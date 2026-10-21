@@ -24,7 +24,7 @@ MODES = ("baseline", "experimental", "blend", "refined") + FAMILIES
 
 
 def main():
-    settings = replace(DEFAULT_SETTINGS, period="max")
+    settings = replace(DEFAULT_SETTINGS, period="2y")
     output = Path("reports/strategy_lab")
     output.mkdir(parents=True, exist_ok=True)
     symbols = list(dict.fromkeys([settings.benchmark] + load_tickers("config/tickers.txt")))
