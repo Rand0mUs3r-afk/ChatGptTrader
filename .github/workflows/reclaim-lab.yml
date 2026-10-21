@@ -1,0 +1,38 @@
+name: Frozen reclaim compression lab
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out isolated experiment branch
+        uses: actions/checkout@v4
+        with:
+          ref: experiments/one-week-strategy-lab
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install research dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Test repository
+        run: pytest -q
+      - name: Run frozen research comparison
+        run: python run_reclaim_lab.py
+      - name: Publish research summary
+        if: always()
+        run: |
+          if [ -f reports/reclaim_lab/summary.md ]; then
+            cat reports/reclaim_lab/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload research reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reclaim-compression-reports
+          path: reports/reclaim_lab/
+          if-no-files-found: warn
