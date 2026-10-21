@@ -1,4 +1,4 @@
-"""Long-history hypothesis screening; no automated tuning or winner deployment."""
+"""One-year hypothesis evaluation with older data used only for indicator warmup."""
 import hashlib
 import json
 from dataclasses import asdict, replace
@@ -14,6 +14,7 @@ from swingbot.indicators import calculate_features
 from swingbot.journal import build_journal
 from swingbot.journal_report import capture_trade, enrich_journal, render_journal
 from swingbot.refined import select_signals
+from swingbot.research_window import one_year_dates
 from swingbot.scanner import load_tickers
 from swingbot.strategies import generate_signals
 from swingbot.strategy_lab import FAMILIES, add_features, generate_candidates
@@ -42,10 +43,11 @@ def main():
                                bars=len(bars), sha256=hashlib.sha256(snapshot.encode()).hexdigest())
     benchmark = panel[settings.benchmark]
     common_end = min(bars.index[-1] for bars in panel.values())
-    evaluation = benchmark.index[settings.minimum_history - 1:]
-    evaluation = evaluation[evaluation <= common_end]
-    if len(evaluation) < 100:
-        raise ValueError("Insufficient benchmark evaluation history.")
+    evaluation = one_year_dates(benchmark.index, common_end, settings.minimum_history)
+    cutoff = common_end - pd.DateOffset(years=1)
+    for ticker, bars in panel.items():
+        if len(bars.index[bars.index < cutoff]) < settings.minimum_history - 1:
+            raise ValueError(f"Insufficient pre-window warmup: {ticker}")
     split = evaluation[int(len(evaluation) * 0.8)]
     market_features = calculate_features(benchmark, settings=settings)
     observations = {(mode, hold): [] for mode in MODES for hold in HOLDS}
@@ -97,19 +99,23 @@ def main():
                 journal.to_csv(output / f"{trial}_{partition}_journal.csv", index=False)
                 (output / f"{trial}_{partition}_journal.md").write_text(render_journal(journal, account, trial + " / " + partition), encoding="utf-8")
                 results.append(dict(trial=trial, family=mode, hold=hold, slippage_bps=cost, partition=partition, **account))
-    note = ("Hypothesis screening, not validated performance. 60 strategy/hold/cost trials, all reported; "
-            "no winner selected. Full and partitions reset equity and must not be summed. "
-            "Latest downloaded row excluded conservatively. Per-ticker start dates differ; no pre-listing data. "
-            "Current-universe survivorship bias. Shared 2R stop/target harness, not family-specific exits. "
-            "Single position, maximum 20% notional by default; cash may be idle. Closed-trade drawdown, not daily MTM. "
-            "No earnings filter or opening-gap revalidation. No walk-forward optimization or multiple-testing correction. "
-            "Existing holdout has been discussed repeatedly: treat it as a chronological evaluation segment, not untouched validation.")
+    note = ("One-year evaluation; older downloaded bars initialize indicators only and cannot generate trades. "
+            "Last 20 sessions cannot generate signals, preserving the existing full-hold-window rule. "
+            "60 trials, all reported, no winner selected. Partitions reset equity and must not be summed. "
+            "Latest downloaded row excluded conservatively. Current-universe survivorship bias. "
+            "Shared 2R/structural-stop harness, single position, maximum 20% notional by default, "
+            "closed-trade drawdown rather than daily MTM. No earnings or gap revalidation. "
+            "No walk-forward optimization or multiple-testing correction. Chronological holdout is not untouched validation.")
     manifest = dict(settings=asdict(settings), holds=HOLDS, costs_bps=COSTS_BPS, coverage=coverage,
-                    split_date=str(split.date()), trial_count=len(MODES)*len(HOLDS)*len(COSTS_BPS), results=results, note=note)
+                    evaluation_window="1y", warmup_download_period=settings.period,
+                    requested_window_start=str(cutoff.date()), evaluation_start=str(evaluation[0].date()),
+                    evaluation_end=str(common_end.date()), split_date=str(split.date()),
+                    trial_count=len(MODES)*len(HOLDS)*len(COSTS_BPS), results=results, note=note)
     (output / "research.json").write_text(json.dumps(manifest, indent=2, allow_nan=False), encoding="utf-8")
     flat = [{k: v for k, v in row.items() if k not in ("note",)} for row in results]
     pd.DataFrame(flat).to_csv(output / "all_trials.csv", index=False)
-    text = "# Long-history strategy lab\n\n" + note + "\n\n"
+    text = "# One-year strategy lab (older bars for warmup only)\n\n" + note + "\n\n"
+    text += f"Evaluation: {evaluation[0].date()} to {common_end.date()}; split: {split.date()}.\n\n"
     text += "| Trial | Partition | Trades | Net P&L | Return | Win rate | Longest loss streak | Closed DD |\n| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |\n"
     for row in results:
         text += (f"| {row['trial']} | {row['partition']} | {row['trades']} | {row['net_pnl']:+,.2f} | "
