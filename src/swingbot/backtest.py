@@ -1,6 +1,6 @@
-
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from swingbot.config import DEFAULT_SETTINGS, Settings
@@ -21,74 +21,42 @@ def simulate_trade(
     entry_bar = bars.iloc[signal_index + 1]
     entry_date = bars.index[signal_index + 1]
     entry = float(entry_bar["Open"])
-
     stop = float(signal["stop"])
-
     if entry <= stop:
         return None
 
     risk_per_share = entry - stop
     target = entry + settings.target_r_multiple * risk_per_share
-
     exit_price = None
     exit_date = None
     exit_reason = None
-
-    last_index = min(
-        signal_index + settings.maximum_holding_days,
-        len(bars) - 1,
-    )
+    last_index = min(signal_index + settings.maximum_holding_days, len(bars) - 1)
 
     for index in range(signal_index + 1, last_index + 1):
         bar = bars.iloc[index]
         date = bars.index[index]
-
-        # A gap through the stop is modeled at the open.
         if float(bar["Open"]) <= stop:
-            exit_price = float(bar["Open"])
-            exit_date = date
-            exit_reason = "gap_stop"
+            exit_price, exit_date, exit_reason = float(bar["Open"]), date, "gap_stop"
             break
-
-        # A gap through the target is conservatively modeled at target.
         if float(bar["Open"]) >= target:
-            exit_price = target
-            exit_date = date
-            exit_reason = "target_gap"
+            exit_price, exit_date, exit_reason = target, date, "target_gap"
             break
-
-        hit_stop = float(bar["Low"]) <= stop
-        hit_target = float(bar["High"]) >= target
-
-        # Without intraday data, the sequence is unknowable.
-        if hit_stop:
-            exit_price = stop
-            exit_date = date
-            exit_reason = "stop"
+        if float(bar["Low"]) <= stop:
+            exit_price, exit_date, exit_reason = stop, date, "stop"
             break
-
-        if hit_target:
-            exit_price = target
-            exit_date = date
-            exit_reason = "target"
+        if float(bar["High"]) >= target:
+            exit_price, exit_date, exit_reason = target, date, "target"
             break
-
         if index == last_index:
-            exit_price = float(bar["Close"])
-            exit_date = date
-            exit_reason = "time_exit"
+            exit_price, exit_date, exit_reason = float(bar["Close"]), date, "time_exit"
 
     if exit_price is None:
         return None
 
-    # Simple per-share slippage approximation on entry and exit.
     slippage = settings.slippage_bps / 10_000
     effective_entry = entry * (1 + slippage)
     effective_exit = exit_price * (1 - slippage)
-
-    gross_return = effective_exit - effective_entry
-    net_return = gross_return - 2 * settings.commission_per_share
-
+    net_return = effective_exit - effective_entry - 2 * settings.commission_per_share
     return {
         "ticker": signal["ticker"],
         "strategy": signal["strategy"],
@@ -111,90 +79,81 @@ def backtest_ticker(
     benchmark_close: pd.Series,
     settings: Settings = DEFAULT_SETTINGS,
 ) -> pd.DataFrame:
-    """Generate historical candidates and simulate subsequent entries."""
-    features = calculate_features(
-        bars,
-        benchmark_close=benchmark_close,
-        settings=settings,
-    )
-
+    """Generate independent trade observations, not a portfolio simulation."""
+    features = calculate_features(bars, benchmark_close=benchmark_close, settings=settings)
     benchmark_features = calculate_features(
-        pd.DataFrame(
-            {
-                "Open": benchmark_close,
-                "High": benchmark_close,
-                "Low": benchmark_close,
-                "Close": benchmark_close,
-                "Volume": 1,
-            },
-            index=benchmark_close.index,
-        ),
+        pd.DataFrame({"Open": benchmark_close, "High": benchmark_close,
+                      "Low": benchmark_close, "Close": benchmark_close, "Volume": 1},
+                     index=benchmark_close.index),
         settings=settings,
     )
-
     trades = []
-
-    # Only evaluate bars for which a next-session entry exists.
     for index in range(settings.minimum_history, len(bars) - 1):
-        history = features.iloc[: index + 1]
-
-        benchmark_row = benchmark_features.reindex(
-            history.index
-        ).iloc[-1]
-
+        history = features.iloc[:index + 1]
+        benchmark_row = benchmark_features.reindex(history.index).iloc[-1]
         benchmark_uptrend = (
             pd.notna(benchmark_row["EMA20"])
             and pd.notna(benchmark_row["SMA50"])
             and benchmark_row["Close"] > benchmark_row["EMA20"]
             and benchmark_row["EMA20"] > benchmark_row["SMA50"]
         )
-
-        signals = generate_signals(
-            ticker,
-            history,
-            settings,
-            benchmark_uptrend=benchmark_uptrend,
-        )
-
+        signals = generate_signals(ticker, history, settings,
+                                   benchmark_uptrend=benchmark_uptrend)
         for signal in signals:
-            trade = simulate_trade(
-                bars,
-                index,
-                signal,
-                settings,
-            )
+            trade = simulate_trade(bars, index, signal, settings)
             if trade:
                 trades.append(trade)
-
     return pd.DataFrame(trades)
 
 
 def summarize_trades(trades: pd.DataFrame) -> dict:
-    """Return basic trade statistics; these are not proof of an edge."""
+    """Return JSON-safe independent-trade statistics, not portfolio returns.
+
+    Profit factor uses one share per trade. A profitable sample with no
+    losses has no finite profit factor; represent it with None, not infinity.
+    Invalid observations fail loudly rather than disappearing from metrics.
+    """
+    basis = "one_share_per_trade_not_portfolio"
     if trades.empty:
         return {
-            "trades": 0,
-            "win_rate": 0.0,
-            "average_r": 0.0,
-            "profit_factor": 0.0,
+            "trades": 0, "win_rate": 0.0, "average_r": 0.0,
+            "profit_factor": 0.0, "profit_factor_status": "no_trades",
+            "profit_factor_basis": basis,
         }
 
-    returns = trades["net_pnl_per_share"]
-    winners = returns[returns > 0]
-    losers = returns[returns < 0]
+    required = ["net_pnl_per_share", "net_r_multiple"]
+    missing = set(required) - set(trades.columns)
+    if missing:
+        raise ValueError(f"Missing trade columns: {sorted(missing)}")
+    values = trades[required].apply(pd.to_numeric, errors="coerce")
+    if not np.isfinite(values.to_numpy(dtype=float)).all():
+        raise ValueError("Trade statistics require finite numeric P&L and R values.")
 
-    gross_profit = float(winners.sum())
-    gross_loss = abs(float(losers.sum()))
+    returns = values["net_pnl_per_share"]
+    gross_profit = float(returns.clip(lower=0).sum())
+    gross_loss = float(-returns.clip(upper=0).sum())
+    if not np.isfinite([gross_profit, gross_loss]).all():
+        raise ValueError("Aggregate trade P&L exceeds the finite numeric range.")
 
-    profit_factor = (
-        gross_profit / gross_loss
-        if gross_loss > 0
-        else float("inf") if gross_profit > 0 else 0.0
-    )
+    if gross_loss > 0:
+        profit_factor = gross_profit / gross_loss
+        if not np.isfinite(profit_factor):
+            profit_factor, status = None, "numeric_overflow"
+        else:
+            status = "finite"
+    elif gross_profit > 0:
+        profit_factor, status = None, "no_losing_trades"
+    else:
+        profit_factor, status = 0.0, "all_breakeven"
 
+    average_r = float(values["net_r_multiple"].mean())
+    if not np.isfinite(average_r):
+        raise ValueError("Average R exceeds the finite numeric range.")
     return {
         "trades": int(len(trades)),
         "win_rate": float((returns > 0).mean()),
-        "average_r": float(trades["net_r_multiple"].mean()),
+        "average_r": average_r,
         "profit_factor": profit_factor,
+        "profit_factor_status": status,
+        "profit_factor_basis": basis,
     }
