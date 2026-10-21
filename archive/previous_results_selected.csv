@@ -1,0 +1,11 @@
+strategy,hold,slippage_bps,partition,starting_equity,maximum_history_net_pnl,two_year_download_net_pnl,one_year_net_pnl,six_month_net_pnl,one_month_net_pnl
+baseline,20,15,full,25000,5520.17,-249.50,-249.50,-219.03,0
+experimental,20,15,full,25000,4111.26,632.84,530.57,236.35,203.58
+blend,20,15,full,25000,5627.17,632.84,530.57,236.35,203.58
+refined,10,15,full,25000,392.45,-532.42,-532.42,-325.02,0
+rsi2_dip,5,15,full,25000,-11013.40,491.56,267.58,82.28,0
+band_reversion,5,15,full,25000,-8242.96,-784.96,-761.87,-963.22,14.56
+compression_breakout,10,15,full,25000,5448.22,82.83,31.27,31.27,25.95
+failed_breakdown,20,15,full,25000,-3685.95,581.75,571.65,142.06,-104.33
+gap_recovery,10,15,full,25000,-1215.08,1543.50,1070.35,452.61,0
+donchian55,5,15,full,25000,-595.65,-62.18,7.80,286.48,-0.52
