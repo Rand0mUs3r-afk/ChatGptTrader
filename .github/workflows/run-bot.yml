@@ -22,21 +22,20 @@ jobs:
           python -m pip install -e .
       - name: Test repository
         run: pytest -q
-      - name: Run longer-history strategy lab
-        run: python run_strategy_lab.py
-      - name: Publish research summary
+      - name: Run new 15-session strategies
+        run: python run_short_history.py
+      - name: Publish short-history summary
         if: always()
         run: |
-          if [ -f reports/strategy_lab/research.md ]; then
-            cat reports/strategy_lab/research.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f reports/short_history_15/research.md ]; then
+            cat reports/short_history_15/research.md >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "No completed research run. Inspect failures; no performance conclusion is available." >> "$GITHUB_STEP_SUMMARY"
+            echo "No completed short-history experiment; inspect errors." >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Upload all trials, journals, and snapshots
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: strategy-lab-results
-          path: reports/strategy_lab/
+          name: short-history-15-results
+          path: reports/short_history_15/
           if-no-files-found: warn
           retention-days: 14
