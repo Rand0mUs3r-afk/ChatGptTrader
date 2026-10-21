@@ -1,4 +1,4 @@
-"""Six-month hypothesis evaluation with older data used only for indicator warmup."""
+"""One-month evaluation preserving the existing full-holding-window restriction."""
 import hashlib
 import json
 from dataclasses import asdict, replace
@@ -14,7 +14,7 @@ from swingbot.indicators import calculate_features
 from swingbot.journal import build_journal
 from swingbot.journal_report import capture_trade, enrich_journal, render_journal
 from swingbot.refined import select_signals
-from swingbot.research_window import six_month_dates
+from swingbot.research_window import one_month_dates
 from swingbot.scanner import load_tickers
 from swingbot.strategies import generate_signals
 from swingbot.strategy_lab import FAMILIES, add_features, generate_candidates
@@ -43,22 +43,25 @@ def main():
                                bars=len(bars), sha256=hashlib.sha256(snapshot.encode()).hexdigest())
     benchmark = panel[settings.benchmark]
     common_end = min(bars.index[-1] for bars in panel.values())
-    evaluation = six_month_dates(benchmark.index, common_end, settings.minimum_history)
-    cutoff = common_end - pd.DateOffset(months=6)
+    evaluation = one_month_dates(benchmark.index, common_end, settings.minimum_history)
+    cutoff = common_end - pd.DateOffset(months=1)
     for ticker, bars in panel.items():
         if len(bars.index[bars.index < cutoff]) < settings.minimum_history - 1:
             raise ValueError(f"Insufficient pre-window warmup: {ticker}")
     split = evaluation[int(len(evaluation) * 0.8)]
     market_features = calculate_features(benchmark, settings=settings)
     observations = {(mode, hold): [] for mode in MODES for hold in HOLDS}
+    eligible_signal_sessions = {}
     for ticker, bars in panel.items():
         if ticker == settings.benchmark:
             continue
+        eligible_signal_sessions[ticker] = 0
         frame = add_features(calculate_features(bars, benchmark["Close"], settings))
         for index in range(settings.minimum_history - 1, len(bars) - max(HOLDS)):
             date = bars.index[index]
             if date not in evaluation or bars.index[index + max(HOLDS)] > common_end:
                 continue
+            eligible_signal_sessions[ticker] += 1
             history = frame.iloc[:index + 1]
             market = market_features.loc[date]
             market_ok = bool(market["Close"] > market["EMA20"] > market["SMA50"])
@@ -99,23 +102,29 @@ def main():
                 journal.to_csv(output / f"{trial}_{partition}_journal.csv", index=False)
                 (output / f"{trial}_{partition}_journal.md").write_text(render_journal(journal, account, trial + " / " + partition), encoding="utf-8")
                 results.append(dict(trial=trial, family=mode, hold=hold, slippage_bps=cost, partition=partition, **account))
-    note = ("Six-month evaluation; older downloaded bars initialize indicators only and cannot generate trades. "
-            "Last 20 sessions cannot generate signals, preserving the existing full-hold-window rule. "
+    note = ("One-month evaluation; older bars initialize indicators only. STRICT existing entry policy: "
+            "the final 20 sessions cannot generate signals for ANY holding-period version. "
+            "This can leave almost no eligible entries; zero trades are not evidence of failure or safety. "
+            "A zero-trade win rate is not applicable despite the legacy 0% display. "
+            "No new open-position accounting or early end-of-month liquidation. "
             "60 trials, all reported, no winner selected. Partitions reset equity and must not be summed. "
-            "Latest downloaded row excluded conservatively. Current-universe survivorship bias. "
-            "Shared 2R/structural-stop harness, single position, maximum 20% notional by default, "
-            "closed-trade drawdown rather than daily MTM. No earnings or gap revalidation. "
-            "No walk-forward optimization or multiple-testing correction. Chronological holdout is not untouched validation.")
+            "Latest downloaded row excluded. Current-universe survivorship bias. Shared 2R/structural-stop harness, "
+            "single position, maximum 20% notional by default; closed-trade drawdown, not daily MTM. "
+            "No earnings/gap revalidation, walk-forward optimization, or multiple-testing correction. "
+            "Chronological holdout is not untouched validation and may have no eligible signals.")
     manifest = dict(settings=asdict(settings), holds=HOLDS, costs_bps=COSTS_BPS, coverage=coverage,
-                    evaluation_window="6mo", warmup_download_period=settings.period,
+                    evaluation_window="1mo", warmup_download_period=settings.period,
                     requested_window_start=str(cutoff.date()), evaluation_start=str(evaluation[0].date()),
                     evaluation_end=str(common_end.date()), split_date=str(split.date()),
+                    evaluation_session_count=len(evaluation), eligible_signal_sessions_by_ticker=eligible_signal_sessions,
+                    end_policy="unchanged_20_session_signal_exclusion_for_all_holds",
                     trial_count=len(MODES)*len(HOLDS)*len(COSTS_BPS), results=results, note=note)
     (output / "research.json").write_text(json.dumps(manifest, indent=2, allow_nan=False), encoding="utf-8")
     flat = [{k: v for k, v in row.items() if k not in ("note",)} for row in results]
     pd.DataFrame(flat).to_csv(output / "all_trials.csv", index=False)
-    text = "# Six-month strategy lab (older bars for warmup only)\n\n" + note + "\n\n"
+    text = "# One-month strategy lab (strict unchanged entry policy)\n\n" + note + "\n\n"
     text += f"Evaluation: {evaluation[0].date()} to {common_end.date()}; split: {split.date()}.\n\n"
+    text += "Eligible signal sessions per ticker, BEFORE strategy qualification: `" + json.dumps(eligible_signal_sessions, sort_keys=True) + "`\n\n"
     text += "| Trial | Partition | Trades | Net P&L | Return | Win rate | Longest loss streak | Closed DD |\n| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |\n"
     for row in results:
         text += (f"| {row['trial']} | {row['partition']} | {row['trades']} | {row['net_pnl']:+,.2f} | "
