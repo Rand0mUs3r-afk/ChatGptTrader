@@ -50,14 +50,18 @@ def setup(history, mode, market):
     return dict(stop=stop, max_open=cap)
 
 
-def simulate(windows, market, mode, bps, starting=25000.0):
-    if mode not in TRIALS or bps not in (5, 15) or not math.isfinite(starting) or starting <= 0 or not windows:
+def simulate(windows, market, mode, bps, starting=25000.0, allocation=0.20, risk_fraction=0.025):
+    """Legacy defaults retained for comparisons; main explicitly uses 1000/25%/6%."""
+    if (mode not in TRIALS or bps not in (5, 15) or not math.isfinite(starting) or starting <= 0 or not windows
+            or not math.isfinite(allocation) or not 0 < allocation <= 1
+            or not math.isfinite(risk_fraction) or not 0 < risk_fraction <= 1):
         raise ValueError("Invalid trial")
     dates = next(iter(windows.values())).index
     if len(dates) not in (5, 15) or not market.index.equals(dates) or any(not x.index.equals(dates) for x in windows.values()):
         raise ValueError("Identical five or fifteen sessions required for every input")
-    columns = ["ticker", "strategy", "signal_date", "entry_date", "exit_date", "entry", "entry_fill", "exit", "exit_fill", "stop", "target", "shares", "net_pnl", "equity_after", "exit_reason"]
+    columns = ["ticker", "strategy", "signal_date", "entry_date", "exit_date", "entry", "entry_fill", "exit", "exit_fill", "stop", "target", "shares", "net_pnl", "equity_after", "exit_reason", "equity_before", "allocation_budget", "risk_budget", "position_cost", "planned_stop_risk", "held_sessions", "held_calendar_days"]
     hold, equity, last_exit, rows = TRIALS[mode], float(starting), -1, []
+    unaffordable = 0
     slip = bps/10000.0
     for i in range(3, len(dates)-1):
         entry_i = i+1
@@ -72,7 +76,13 @@ def simulate(windows, market, mode, bps, starting=25000.0):
             if entry <= stop or (signal["max_open"] is not None and entry > signal["max_open"]):
                 continue
             entry_fill = entry*(1+slip)
-            shares = min(math.floor(equity*0.005/(entry_fill-stop*(1-slip))), math.floor(equity*0.20/entry_fill))
+            allocation_budget = equity*allocation
+            risk_budget = allocation_budget*risk_fraction
+            unit_risk = entry_fill-stop*(1-slip)
+            affordable = math.floor(allocation_budget/entry_fill)
+            if affordable < 1:
+                unaffordable += 1
+            shares = min(math.floor(risk_budget/unit_risk), affordable)
             if shares < 1:
                 continue
             target = entry+2*(entry-stop)
@@ -95,10 +105,13 @@ def simulate(windows, market, mode, bps, starting=25000.0):
                 break
             exit_fill = price*(1-slip)
             pnl = shares*(exit_fill-entry_fill)
-            equity += pnl
+            before, equity = equity, equity+pnl
             rows.append(dict(ticker=ticker, strategy=mode, signal_date=str(dates[i].date()), entry_date=str(dates[entry_i].date()),
                 exit_date=str(dates[j].date()), entry=entry, entry_fill=entry_fill, exit=price, exit_fill=exit_fill,
-                stop=stop, target=target, shares=shares, net_pnl=pnl, equity_after=equity, exit_reason=reason))
+                stop=stop, target=target, shares=shares, net_pnl=pnl, equity_after=equity, exit_reason=reason,
+                equity_before=before, allocation_budget=allocation_budget, risk_budget=risk_budget,
+                position_cost=shares*entry_fill, planned_stop_risk=shares*unit_risk,
+                held_sessions=j-entry_i+1, held_calendar_days=int((dates[j]-dates[entry_i]).days)))
             last_exit = j
             break
     journal = pd.DataFrame(rows, columns=columns)
@@ -112,14 +125,33 @@ def simulate(windows, market, mode, bps, starting=25000.0):
     curve = pd.Series([starting]+journal.equity_after.tolist(), dtype=float)
     summary = dict(strategy=mode, hold=hold, sessions=len(dates), bps_per_side=bps, trades=len(rows),
         starting_equity=starting, final_equity=equity, net_pnl=float(pnl.sum()), return_pct=(equity/starting-1)*100,
+        allocation_pct=allocation*100, risk_pct_of_allocation=risk_fraction*100, initial_risk_budget=starting*allocation*risk_fraction,
         wins=len(wins), losses=len(losses), breakeven=int((pnl == 0).sum()),
         win_rate_pct=float((pnl > 0).mean()*100) if rows else None,
         average_win=float(wins.mean()) if len(wins) else None, average_loss=float(losses.mean()) if len(losses) else None,
         largest_gain=float(wins.max()) if len(wins) else None, largest_loss=float(losses.min()) if len(losses) else None,
         average_trade=float(pnl.mean()) if rows else None, max_consecutive_losses=longest,
+        average_held_sessions=float(journal.held_sessions.mean()) if rows else None,
+        shortest_hold_sessions=int(journal.held_sessions.min()) if rows else None,
+        longest_hold_sessions=int(journal.held_sessions.max()) if rows else None,
+        average_held_calendar_days=float(journal.held_calendar_days.mean()) if rows else None,
+        unaffordable_candidate_events=unaffordable,
         normal_exit_pnl=float(pnl[~forced].sum()), window_end_pnl=float(pnl[forced].sum()), window_end_exits=int(forced.sum()),
         closed_trade_drawdown_pct=float(((curve.cummax()-curve)/curve.cummax()).max()*100))
     return journal, summary
+
+
+def portfolio_summary(table):
+    text = "\n---\n## Final portfolio summary — separate accounts, never combined\n\n"
+    text += "Starting equity: $1,000 per trial. Allocation cap: 25% of current equity. Planned risk ceiling: 6% of allocation budget (initially $15). Whole shares; no leverage. Actual risk may be lower; gaps can exceed planned risk.\n\n"
+    text += "| Sessions | Strategy | bps/side | Total trades | Won | Lost | Breakeven | Final equity | Net P&L | Avg hold sessions | Shortest/longest | Avg calendar days |\n|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|\n"
+    for row in table.to_dict("records"):
+        active = row["trades"] > 0
+        avg = f"{row['average_held_sessions']:.2f}" if active else "N/A"
+        limits = f"{int(row['shortest_hold_sessions'])}/{int(row['longest_hold_sessions'])}" if active else "N/A"
+        days = f"{row['average_held_calendar_days']:.2f}" if active else "N/A"
+        text += f"| {row['sessions']} | {row['strategy']} | {row['bps_per_side']} | {row['trades']} | {row['wins']} | {row['losses']} | {row['breakeven']} | ${row['final_equity']:.2f} | {row['net_pnl']:+.2f} | {avg} | {limits} | {days} |\n"
+    return text
 
 
 def main():
@@ -156,20 +188,23 @@ def main():
         windows = {ticker: inputs[ticker].tail(sessions) for ticker in tickers}
         for mode in TRIALS:
             for bps in (15, 5):
-                journal, summary = simulate(windows, inputs["SPY"].tail(sessions), mode, bps)
+                journal, summary = simulate(windows, inputs["SPY"].tail(sessions), mode, bps,
+                    starting=1000.0, allocation=0.25, risk_fraction=0.06)
                 journal.to_csv(output/f"s{sessions}_{mode}_bps{bps}_journal.csv", index=False)
                 results.append(summary)
     table = pd.DataFrame(results).sort_values(["sessions", "bps_per_side", "net_pnl"], ascending=[False, False, False])
     table.to_csv(output/"all_trials.csv", index=False)
-    limitations = "Exploratory, not validation. Five sessions overlap the fifteen-session sample. No older signal warmup. Four-bar readiness permits only one possible entry in five sessions. Current-universe bias, daily stop-first fills, zero commission, no cash interest. Forced exits are hypothetical. Drawdown is closed-trade only. No automatic winner deployment."
+    limitations = "Exploratory, not validation. Five sessions overlap the fifteen-session sample. No older signal warmup. Four-bar readiness permits only one possible entry in five sessions. Current-universe bias, daily stop-first fills, zero commission, no cash interest. Forced exits are hypothetical. Drawdown is closed-trade only. No automatic winner deployment. Same-day exits count as one held session and zero calendar days."
     manifest = dict(cutoff_exclusive=str(cutoff.date()), sessions={str(n): [str(x.date()) for x in dates[-n:]] for n in (15, 5)},
-        universe=tickers, benchmark="SPY", trials=len(results), coverage=coverage, limitations=limitations, results=results)
+        universe=tickers, benchmark="SPY", trials=len(results), coverage=coverage, limitations=limitations, results=results,
+        portfolio=dict(starting_equity=1000, allocation_pct=25, risk_pct_of_allocation=6, initial_risk_budget=15, whole_shares=True))
     (output/"results.json").write_text(json.dumps(manifest, indent=2, allow_nan=False), encoding="utf-8")
-    text = "# Frozen reclaim/compression experiment\n\n"+limitations+"\n\n"
+    text = "# Frozen reclaim/compression experiment — $1,000 portfolio\n\n"+limitations+"\n\n"
     text += "| Sessions | Strategy | Hold | bps/side | Trades | Net P&L | Win rate | Loss streak | Forced exits | Forced P&L |\n|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|\n"
     for row in table.to_dict("records"):
         rate = "N/A" if pd.isna(row["win_rate_pct"]) else f"{row['win_rate_pct']:.1f}%"
         text += f"| {row['sessions']} | {row['strategy']} | {row['hold']} | {row['bps_per_side']} | {row['trades']} | {row['net_pnl']:+.2f} | {rate} | {row['max_consecutive_losses']} | {row['window_end_exits']} | {row['window_end_pnl']:+.2f} |\n"
+    text += portfolio_summary(table)
     (output/"summary.md").write_text(text, encoding="utf-8")
     print(text)
 
