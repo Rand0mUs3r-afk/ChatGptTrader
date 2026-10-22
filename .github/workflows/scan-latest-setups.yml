@@ -2,8 +2,16 @@ name: Scan latest setups
 on:
   workflow_dispatch:
     inputs:
+      market:
+        description: 'Market: US uses USD; TSX uses CAD. Separate scenarios, no FX conversion.'
+        required: true
+        default: us
+        type: choice
+        options:
+          - us
+          - tsx
       equity:
-        description: 'Account equity in USD (assumes flat account; no orders)'
+        description: 'Equity in selected market currency: USD for us, CAD for tsx. Assumes flat account.'
         required: true
         default: '1000'
         type: string
@@ -14,10 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check out reviewed scanner from experiment branch
+      - name: Check out reviewed US and TSX scanner
         uses: actions/checkout@v4
         with:
-          ref: 6c82fe0d891a5a0eb7370fbf30354a79c6e200bf
+          ref: 864ef29352d71d085c8f4846ebf2b4dfb758d142
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -31,10 +39,11 @@ jobs:
         run: python -m pip install -e '.[dev]' -r requirements-scanner.txt
       - name: Run repository tests
         run: python -m pytest -q
-      - name: Scan latest completed session
+      - name: Scan latest completed session for selected exchange
         env:
+          SCAN_MARKET: ${{ inputs.market }}
           SCAN_EQUITY: ${{ inputs.equity }}
-        run: python scan_latest_setups.py --equity "$SCAN_EQUITY"
+        run: python scan_market_setups.py --market "$SCAN_MARKET" --equity "$SCAN_EQUITY"
       - name: Publish scan summary
         if: always()
         run: |
@@ -45,7 +54,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: latest-setup-scan-${{ github.run_id }}
+          name: latest-setup-scan-${{ inputs.market }}-${{ github.run_id }}
           path: reports/latest_setups/
           if-no-files-found: warn
           retention-days: 14
