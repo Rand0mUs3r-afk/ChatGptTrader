@@ -22,10 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check out reviewed US and TSX scanner
+      - name: Check out reviewed US and TSX scanner with explanations
         uses: actions/checkout@v4
         with:
-          ref: 864ef29352d71d085c8f4846ebf2b4dfb758d142
+          ref: fe4303b5c91ee06ac3d522fc80a751b0cd9a7245
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -39,11 +39,11 @@ jobs:
         run: python -m pip install -e '.[dev]' -r requirements-scanner.txt
       - name: Run repository tests
         run: python -m pytest -q
-      - name: Scan latest completed session for selected exchange
+      - name: Scan and explain latest completed session for selected exchange
         env:
           SCAN_MARKET: ${{ inputs.market }}
           SCAN_EQUITY: ${{ inputs.equity }}
-        run: python scan_market_setups.py --market "$SCAN_MARKET" --equity "$SCAN_EQUITY"
+        run: python explain_scan.py --market "$SCAN_MARKET" --equity "$SCAN_EQUITY"
       - name: Publish scan summary
         if: always()
         run: |
