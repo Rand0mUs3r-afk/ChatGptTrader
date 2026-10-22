@@ -1,0 +1,42 @@
+name: Monday weekly hold experiment
+on:
+  push:
+    branches: [experiments/monday-weekly-hold]
+    paths:
+      - run_monday_weekly.py
+      - tests/test_monday_weekly.py
+      - MONDAY_WEEKLY.md
+      - .github/workflows/monday-weekly.yml
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install research dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Test repository
+        run: pytest -q
+      - name: Run Monday entry comparison
+        run: python run_monday_weekly.py
+      - name: Publish weekly summary
+        if: always()
+        run: |
+          if [ -f reports/monday_weekly_hold/summary.md ]; then
+            cat reports/monday_weekly_hold/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload weekly reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monday-weekly-hold-reports
+          path: reports/monday_weekly_hold/
+          if-no-files-found: warn
