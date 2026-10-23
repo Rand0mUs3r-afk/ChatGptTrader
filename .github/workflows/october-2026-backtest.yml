@@ -71,19 +71,54 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: october-2026-backtest-${{ github.run_id }}
+          name: october-2026-backtest-${{ github.run_id }}-${{ github.run_attempt }}
           path: reports/october_2026/
           if-no-files-found: warn
           retention-days: 14
-      - name: Save summaries and journals to experiment branch, never raw bars
+      - name: Archive reports on latest experiment branch without overwriting history
         if: success()
+        env:
+          REPORT_MARKET: ${{ inputs.market || 'both' }}
         run: |
+          set -euo pipefail
           test -f reports/october_2026/results.json
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          find reports/october_2026 -type f \( -name 'summary.md' -o -name 'results.json' -o -name 'results.csv' -o -name '*_journal.json' -o -name '*_journal.csv' -o -name '*_daily_equity.csv' -o -name '*_decisions.csv' \) -print0 | xargs -0 git add -f --
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m 'Record October 2026 backtest results'
-          git push origin HEAD:refs/heads/experiments/recent-weighted-swing-blend
+          for attempt in 1 2 3; do
+            git fetch --no-tags origin refs/heads/experiments/recent-weighted-swing-blend
+            publish_dir=$(mktemp -d "$RUNNER_TEMP/october-publish.XXXXXX")
+            git worktree add --detach "$publish_dir" FETCH_HEAD
+            PUBLISH_DIR="$publish_dir" python - <<'PY'
+          import json
+          import os
+          import re
+          import shutil
+          from pathlib import Path
+          source = Path("reports/october_2026")
+          key = os.environ["GITHUB_RUN_ID"] + "-" + os.environ["GITHUB_RUN_ATTEMPT"]
+          if not re.fullmatch(r"[0-9]+-[0-9]+", key):
+              raise ValueError("Invalid run key")
+          relative = Path("reports/october_2026/runs") / key
+          archive = Path(os.environ["PUBLISH_DIR"]) / relative
+          archive.mkdir(parents=True, exist_ok=False)
+          for item in sorted(source.rglob("*")):
+              if item.is_file() and (item.name in ("summary.md", "results.json", "results.csv") or item.name.endswith(("_journal.json", "_journal.csv", "_daily_equity.csv", "_decisions.csv"))):
+                  destination = archive / item.relative_to(source)
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copyfile(item, destination)
+          pointer = dict(run_key=key, market=os.environ.get("REPORT_MARKET", "both"),
+              source_commit="335755509f2f6c3c04d1542de7f1d9ab3ab037c0",
+              results_json=str(relative / "results.json"), summary_markdown=str(relative / "summary.md"))
+          (Path(os.environ["PUBLISH_DIR"]) / "reports/october_2026/latest_run.json").write_text(json.dumps(pointer, indent=2) + "\n", encoding="utf-8")
+          PY
+            git -C "$publish_dir" config user.name 'github-actions[bot]'
+            git -C "$publish_dir" config user.email 'github-actions[bot]@users.noreply.github.com'
+            git -C "$publish_dir" add -f -- "reports/october_2026/runs/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" reports/october_2026/latest_run.json
+            git -C "$publish_dir" commit -m "Record October backtest run $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT"
+            if git -C "$publish_dir" push origin HEAD:refs/heads/experiments/recent-weighted-swing-blend; then
+              git worktree remove "$publish_dir"
+              exit 0
+            fi
+            git worktree remove --force "$publish_dir"
+            sleep $((attempt * 2))
+          done
+          echo 'Report publication failed after three fresh-head attempts. Results remain in Actions summary/artifact.' >&2
+          exit 1
