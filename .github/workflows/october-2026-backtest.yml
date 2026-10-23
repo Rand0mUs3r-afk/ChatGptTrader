@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       market:
-        description: 'Separate market scenarios; both does not combine currencies or equity.'
+        description: 'October-only backtest; separate currency/account scenarios.'
         required: true
         default: both
         type: choice
@@ -26,6 +26,14 @@ on:
         required: true
         default: '1000'
         type: string
+      share_mode:
+        description: 'Fractional simulation or whole-share comparison; broker execution unverified.'
+        required: true
+        default: fractional
+        type: choice
+        options:
+          - fractional
+          - whole
 permissions:
   contents: write
 concurrency:
@@ -36,10 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Check out reviewed October-only backtest
+      - name: Check out corrected October-only fractional backtest
         uses: actions/checkout@v4
         with:
-          ref: 335755509f2f6c3c04d1542de7f1d9ab3ab037c0
+          ref: 8a9640ff2dc3738e24c10bb49b87a8f48fabb3e9
           persist-credentials: true
       - uses: actions/setup-python@v5
         with:
@@ -51,21 +59,33 @@ jobs:
             requirements-scanner.txt
       - name: Install dependencies
         run: python -m pip install -e '.[dev]' -r requirements-scanner.txt
-      - name: Run repository tests
+      - name: Run whole and fractional regression tests
+        env:
+          FRACTIONAL_SHARES: 'false'
         run: python -m pytest -q
-      - name: Run October-entry backtest through latest completed October session
+      - name: Clear only generated output in temporary runner checkout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          path = Path('reports/october_2026')
+          if path.exists():
+              shutil.rmtree(path)
+          PY
+      - name: Run October-only backtest through latest completed October session
         env:
           BT_MARKET: ${{ inputs.market || 'both' }}
           BT_EQUITY_US: ${{ inputs.equity_us || '1000' }}
           BT_EQUITY_TSX: ${{ inputs.equity_tsx || '1000' }}
-        run: python backtest_october_2026.py --market "$BT_MARKET" --equity-us "$BT_EQUITY_US" --equity-tsx "$BT_EQUITY_TSX"
-      - name: Publish result summary
+          BT_SHARE_MODE: ${{ inputs.share_mode || 'fractional' }}
+        run: python backtest_october_2026.py --market "$BT_MARKET" --equity-us "$BT_EQUITY_US" --equity-tsx "$BT_EQUITY_TSX" --share-mode "$BT_SHARE_MODE"
+      - name: Publish October backtest summary
         if: always()
         run: |
           if [ -f reports/october_2026/summary.md ]; then
             cat reports/october_2026/summary.md >> "$GITHUB_STEP_SUMMARY"
           else
-            echo 'October backtest did not finish. Check the first failed step; no performance results are available.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'October backtest did not finish. Check the first failed step; no new performance results are available.' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload complete reports and price snapshots
         if: always()
@@ -75,10 +95,11 @@ jobs:
           path: reports/october_2026/
           if-no-files-found: warn
           retention-days: 14
-      - name: Archive reports on latest experiment branch without overwriting history
+      - name: Archive new run on latest experiment branch without overwriting history
         if: success()
         env:
           REPORT_MARKET: ${{ inputs.market || 'both' }}
+          REPORT_SHARE_MODE: ${{ inputs.share_mode || 'fractional' }}
         run: |
           set -euo pipefail
           test -f reports/october_2026/results.json
@@ -100,12 +121,15 @@ jobs:
           archive = Path(os.environ["PUBLISH_DIR"]) / relative
           archive.mkdir(parents=True, exist_ok=False)
           for item in sorted(source.rglob("*")):
+              if item.relative_to(source).parts[0] == "runs":
+                  continue
               if item.is_file() and (item.name in ("summary.md", "results.json", "results.csv") or item.name.endswith(("_journal.json", "_journal.csv", "_daily_equity.csv", "_decisions.csv"))):
                   destination = archive / item.relative_to(source)
                   destination.parent.mkdir(parents=True, exist_ok=True)
                   shutil.copyfile(item, destination)
           pointer = dict(run_key=key, market=os.environ.get("REPORT_MARKET", "both"),
-              source_commit="335755509f2f6c3c04d1542de7f1d9ab3ab037c0",
+              share_mode=os.environ.get("REPORT_SHARE_MODE", "fractional"),
+              source_commit="8a9640ff2dc3738e24c10bb49b87a8f48fabb3e9",
               results_json=str(relative / "results.json"), summary_markdown=str(relative / "summary.md"))
           (Path(os.environ["PUBLISH_DIR"]) / "reports/october_2026/latest_run.json").write_text(json.dumps(pointer, indent=2) + "\n", encoding="utf-8")
           PY
