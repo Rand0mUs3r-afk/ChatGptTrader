@@ -33,7 +33,7 @@ jobs:
       - name: Check out reviewed scanner using validated Yahoo OHLC
         uses: actions/checkout@v4
         with:
-          ref: a702f304f7823475bf2dede68d148dab355c6844
+          ref: 7b4285609799b215054f42b532112a0a08c54b59
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
