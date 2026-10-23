@@ -30,10 +30,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check out reviewed scanner with validated data retries
+      - name: Check out reviewed scanner using validated Yahoo OHLC
         uses: actions/checkout@v4
         with:
-          ref: a6f93f20b1664eb8843ac82c4c5726a3cfdbd92e
+          ref: a702f304f7823475bf2dede68d148dab355c6844
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
