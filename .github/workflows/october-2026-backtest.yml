@@ -1,0 +1,89 @@
+name: October 2026 backtest
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/october-2026-backtest.yml
+  workflow_dispatch:
+    inputs:
+      market:
+        description: 'Separate market scenarios; both does not combine currencies or equity.'
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - us
+          - tsx
+      equity_us:
+        description: 'Starting equity per independent US scenario, in USD.'
+        required: true
+        default: '1000'
+        type: string
+      equity_tsx:
+        description: 'Starting equity per independent TSX scenario, in CAD.'
+        required: true
+        default: '1000'
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: october-2026-backtest
+  cancel-in-progress: false
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out reviewed October-only backtest
+        uses: actions/checkout@v4
+        with:
+          ref: 335755509f2f6c3c04d1542de7f1d9ab3ab037c0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.txt
+            requirements-scanner.txt
+      - name: Install dependencies
+        run: python -m pip install -e '.[dev]' -r requirements-scanner.txt
+      - name: Run repository tests
+        run: python -m pytest -q
+      - name: Run October-entry backtest through latest completed October session
+        env:
+          BT_MARKET: ${{ inputs.market || 'both' }}
+          BT_EQUITY_US: ${{ inputs.equity_us || '1000' }}
+          BT_EQUITY_TSX: ${{ inputs.equity_tsx || '1000' }}
+        run: python backtest_october_2026.py --market "$BT_MARKET" --equity-us "$BT_EQUITY_US" --equity-tsx "$BT_EQUITY_TSX"
+      - name: Publish result summary
+        if: always()
+        run: |
+          if [ -f reports/october_2026/summary.md ]; then
+            cat reports/october_2026/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'October backtest did not finish. Check the first failed step; no performance results are available.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload complete reports and price snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: october-2026-backtest-${{ github.run_id }}
+          path: reports/october_2026/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Save summaries and journals to experiment branch, never raw bars
+        if: success()
+        run: |
+          test -f reports/october_2026/results.json
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          find reports/october_2026 -type f \( -name 'summary.md' -o -name 'results.json' -o -name 'results.csv' -o -name '*_journal.json' -o -name '*_journal.csv' -o -name '*_daily_equity.csv' -o -name '*_decisions.csv' \) -print0 | xargs -0 git add -f --
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Record October 2026 backtest results'
+          git push origin HEAD:refs/heads/experiments/recent-weighted-swing-blend
