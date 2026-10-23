@@ -16,7 +16,7 @@ on:
         default: '1000'
         type: string
       target_mode:
-        description: 'Experimental data-checked targets, or original fixed-2R baseline. Research only; no orders.'
+        description: 'Experimental joint structural SL/TP, or original fixed-2R baseline. Research only; no orders.'
         required: true
         default: data_checked
         type: choice
@@ -30,10 +30,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check out reviewed scanner using validated Yahoo OHLC
+      - name: Check out reviewed scanner with joint structural SL and TP
         uses: actions/checkout@v4
         with:
-          ref: 7b4285609799b215054f42b532112a0a08c54b59
+          ref: ab731e5e0ef45757957db65997a915bcac8a5b67
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -54,7 +54,7 @@ jobs:
           TARGET_MODE: ${{ inputs.target_mode }}
         run: |
           case "$TARGET_MODE" in
-            data_checked) python assess_targets.py --market "$SCAN_MARKET" --equity "$SCAN_EQUITY" ;;
+            data_checked) python assess_structural_risk.py --market "$SCAN_MARKET" --equity "$SCAN_EQUITY" ;;
             baseline_2r) python explain_scan.py --market "$SCAN_MARKET" --equity "$SCAN_EQUITY" ;;
             *) echo 'Invalid target mode' >&2; exit 1 ;;
           esac
