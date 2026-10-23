@@ -1,8 +1,9 @@
-"""October 2026 entry-only backtest of the experimental joint SL/TP rules. No orders."""
+"""October 2026 entry-only joint SL/TP backtest with fractional sizing. No orders."""
 import argparse
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -11,12 +12,15 @@ START, END = pd.Timestamp("2026-10-01"), pd.Timestamp("2026-11-01")
 MODES = ("compression_family","balanced_blend")
 
 
-def simulate(data, cached, mode, hold, equity=1000.0, assessor=None):
+def simulate(data, cached, mode, hold, equity=1000.0, assessor=None, eligibility=None, fractional=None):
     from run_recent_blend import candidate, FAMILIES
     from scan_latest_setups import price_plan
     if assessor is None:
         from assess_targets import assess
         assessor = assess
+    if fractional is None:
+        fractional = os.environ.get("FRACTIONAL_SHARES","false").strip().lower() in ("true","1","yes")
+    eligibility = eligibility or {}
     dates = next(iter(data.values())).index
     if any(not f.index.equals(dates) for f in data.values()):
         raise ValueError("Unaligned exchange sessions")
@@ -31,6 +35,8 @@ def simulate(data, cached, mode, hold, equity=1000.0, assessor=None):
         if position is None and equity > 0:
             candidates = []
             for ticker in sorted(data):
+                if date < pd.Timestamp(eligibility.get(ticker,START)):
+                    continue
                 feature = cached[ticker][i-1]
                 signal = candidate(feature,mode,weights,False)
                 if signal:
@@ -41,9 +47,9 @@ def simulate(data, cached, mode, hold, equity=1000.0, assessor=None):
                 if entry <= stop:
                     decisions.append(dict(**decision,status="SKIP_OPEN_AT_OR_BELOW_STOP"))
                     continue
-                plan = price_plan(entry,stop,equity)
-                if plan["shares"] < 1:
-                    decisions.append(dict(**decision,status="SKIP_UNAFFORDABLE"))
+                plan = price_plan(entry,stop,equity,fractional=fractional)
+                if plan["shares"] <= 0:
+                    decisions.append(dict(**decision,status=plan.get("sizing_status","SKIP_UNAFFORDABLE")))
                     continue
                 row = dict(strategy=mode,max_hold_sessions=hold,provisional_entry=entry,stop=stop)
                 check,_ = assessor(data[ticker].iloc[:i],row,cached[ticker][:i])
@@ -53,7 +59,7 @@ def simulate(data, cached, mode, hold, equity=1000.0, assessor=None):
                 fill = entry*(1+slip)
                 position = dict(ticker=ticker,signal_date=str(dates[i-1].date()),entry_date=str(date.date()),
                     entry_index=i,entry_open=entry,entry_fill=fill,stop=stop,target=float(check["assessed_target"]),
-                    shares=int(plan["shares"]),planned_stop_risk=float(plan["planned_stop_risk"]),
+                    shares=float(plan["shares"]),planned_stop_risk=float(plan["planned_stop_risk"]),
                     position_cost=float(plan["estimated_cost"]),net_rr=float(check["assessed_net_rr"]),
                     historical_examples=check["historical_examples"],walkforward_examples=check["walkforward_examples"],
                     votes=", ".join(signal["votes"]),families=", ".join(signal["groups"]),
@@ -90,20 +96,18 @@ def simulate(data, cached, mode, hold, equity=1000.0, assessor=None):
         position.update(exit_reason="OPEN_AT_CUTOFF",mark_date=daily[-1]["date"],
             unrealized_estimated_liquidation_pnl=daily[-1]["unrealized_estimated_liquidation_pnl"],
             held_sessions=int(dates.get_loc(pd.Timestamp(daily[-1]["date"])))-position["entry_index"]+1)
-    closed = [r for r in journal if r["closed"]]
-    profits = [r["net_pnl"] for r in closed]
+    profits = [r["net_pnl"] for r in journal if r["closed"]]
     curve = np.array([initial]+[r["marked_equity"] for r in daily])
     peaks = np.maximum.accumulate(curve)
     summary = dict(strategy=mode,max_hold_sessions=hold,starting_equity=initial,
-        entries=len(journal),closed_trades=len(closed),wins=sum(p>0 for p in profits),
+        quantity_model="fractional_simulation" if fractional else "whole_share_simulation",
+        entries=len(journal),closed_trades=len(profits),wins=sum(p>0 for p in profits),
         losses=sum(p<0 for p in profits),breakeven=sum(p==0 for p in profits),
         open_positions=int(position is not None),realized_net_pnl=float(equity-initial),
         unrealized_estimated_liquidation_pnl=daily[-1]["unrealized_estimated_liquidation_pnl"],
-        ending_marked_equity=daily[-1]["marked_equity"],
-        total_return_pct=float((curve[-1]/initial-1)*100),
+        ending_marked_equity=daily[-1]["marked_equity"],total_return_pct=float((curve[-1]/initial-1)*100),
         win_rate_closed_pct=float(100*sum(p>0 for p in profits)/len(profits)) if profits else None,
-        max_marked_drawdown_pct=float(np.max((peaks-curve)/peaks)*100),
-        asof=daily[-1]["date"])
+        max_marked_drawdown_pct=float(np.max((peaks-curve)/peaks)*100),asof=daily[-1]["date"])
     return summary,journal,daily,decisions
 
 
@@ -116,12 +120,13 @@ def main():
     parser.add_argument("--market",choices=("us","tsx","both"),default="both")
     parser.add_argument("--equity-us",type=float,default=1000.0)
     parser.add_argument("--equity-tsx",type=float,default=1000.0)
+    parser.add_argument("--share-mode",choices=("fractional","whole"),default="fractional")
     args = parser.parse_args()
     if any(not math.isfinite(x) or x<=0 for x in (args.equity_us,args.equity_tsx)):
         raise ValueError("Positive finite scenario equity required")
     out = Path("reports/october_2026")
     out.mkdir(parents=True,exist_ok=True)
-    now,results,coverage = pd.Timestamp.now(tz="UTC"),[],{}
+    now,results,coverage,universes = pd.Timestamp.now(tz="UTC"),[],{},{}
     for market in (("us","tsx") if args.market == "both" else (args.market,)):
         calendar = xcals.get_calendar("XNYS" if market == "us" else "XTSE")
         sessions = calendar.sessions_in_range(START-pd.DateOffset(years=5),END-pd.Timedelta(days=1))
@@ -131,8 +136,20 @@ def main():
         cutoff = pd.Timestamp(complete[-1]).tz_localize(None).normalize()+pd.Timedelta(days=1)
         required = pd.DatetimeIndex(complete[-20:]).tz_localize(None).normalize()
         tickers = sorted(set(load_tickers("config/tickers.txt" if market == "us" else "config/tickers_tsx.txt")))
+        eligibility = {t:START for t in tickers}
+        if market == "tsx":
+            original = set(load_tickers("config/tickers_tsx_october_baseline.txt"))
+            added = pd.read_csv("config/tsx_added_eligibility.csv")
+            dates = {r.ticker:pd.Timestamp(r.eligible_from).normalize() for r in added.itertuples()}
+            for ticker in set(tickers)-original:
+                if ticker not in dates:
+                    raise ValueError(f"{ticker}: missing universe eligibility date")
+                eligibility[ticker] = dates[ticker]
+        excluded = [t for t in tickers if eligibility[t] >= cutoff]
+        universes[market] = dict(eligible_from={t:str(d.date()) for t,d in eligibility.items()},not_yet_eligible=excluded)
+        tickers = [t for t in tickers if t not in excluded]
         if not tickers:
-            raise ValueError("Empty watchlist")
+            raise ValueError("No date-eligible watchlist members")
         directory = out/market
         directory.mkdir(exist_ok=True)
         data = {}
@@ -152,7 +169,8 @@ def main():
             cached = {ticker:risk_features(frame,mode) for ticker,frame in data.items()}
             for hold in (5,7):
                 summary,journal,daily,decisions = simulate(data,cached,mode,hold,
-                    equity=args.equity_us if market == "us" else args.equity_tsx)
+                    equity=args.equity_us if market == "us" else args.equity_tsx,
+                    eligibility=eligibility,fractional=args.share_mode == "fractional")
                 summary.update(market=market,currency="USD" if market == "us" else "CAD")
                 results.append(summary)
                 trial=f"{mode}_h{hold}"
@@ -160,21 +178,26 @@ def main():
                 pd.DataFrame(journal,columns=list(journal[0]) if journal else ["ticker","entry_date","exit_date","closed","net_pnl"]).to_csv(directory/f"{trial}_journal.csv",index=False)
                 pd.DataFrame(daily).to_csv(directory/f"{trial}_daily_equity.csv",index=False)
                 pd.DataFrame(decisions,columns=["entry_date","ticker","status","net_rr"]).to_csv(directory/f"{trial}_decisions.csv",index=False)
-    notes = ("Only entries dated October 1-31, 2026 are eligible; evaluation ends at the latest completed October "
-        "session available at run time. Earlier bars are training/warm-up only. Each market/strategy/holding period "
-        "is an independent flat-start account; one position at a time, no same-day reentry after exit, no FX pooling. "
-        "Signals/stops use previous close; entry is next session open. Target and net RR are recalculated at that open "
-        "using only earlier bars and matured historical examples. Current structural SL, historical TP and walk-forward "
-        "filters apply. 25% allocation and 1.5% equity planned-risk caps; 15 bps/side; zero commissions/dividend cash. "
-        "Stop-first on ambiguous daily bars; gap-stop losses can exceed plan. Positions still open at cutoff are NOT "
-        "forced wins/losses: closed P&L and estimated-liquidation unrealized P&L are separate. No future October data "
-        "is fabricated. This is a development-sample research backtest, with current-universe/survivorship bias, "
-        "retrospective Yahoo data, and no independent live validation; not a guaranteed forecast.")
+    notes = ("Only October 2026 entries are allowed, through the latest completed October session available; "
+        "earlier bars are training-only. Newly selected TSX movers/ETFs are eligible from October 23, 2026, "
+        "not retrospectively from October 1. Until that session completes they do not enter this backtest. "
+        "Separate flat-start US/USD and TSX/CAD scenarios, one position at a time, no FX pooling or same-day reentry. "
+        "Prior-close structural SL and next-open entry; TP and RR use only earlier bars and matured outcomes. "
+        "Allocation cap 25%, planned-risk cap 1.5% of equity; 15 bps/side, zero commissions/dividend cash. "
+        "Fractional mode uses 0.001-share steps and minimum notional 1; quantities and P&L retain fractions. "
+        "Broker eligibility, precision and fractional SL/TP execution are unverified simulation assumptions. "
+        "RR/evidence filters remain unchanged. Stop-first daily fills and gap-risk assumptions remain. "
+        "Open positions are marked separately, not forced wins/losses. Current-universe/development-sample bias "
+        "remains; this is not independent live validation and no future data is fabricated.")
     manifest = dict(generated_at=str(now),entry_start="2026-10-01",entry_end_exclusive="2026-11-01",
-        price_basis=PRICE_BASIS,notes=notes,coverage=coverage,results=results)
+        share_mode=args.share_mode,universe_eligibility=universes,price_basis=PRICE_BASIS,
+        notes=notes,coverage=coverage,results=results)
     (out/"results.json").write_text(json.dumps(manifest,indent=2,allow_nan=False),encoding="utf-8")
     pd.DataFrame(results).to_csv(out/"results.csv",index=False)
-    text = f"# October 2026 entry-only backtest\n\n{notes}\n\n"
+    text = f"# October 2026 entry-only backtest ({args.share_mode} shares)\n\n{notes}\n\n"
+    for market,universe in universes.items():
+        if universe["not_yet_eligible"]:
+            text += f"{market.upper()} additions not yet eligible: {', '.join(universe['not_yet_eligible'])}.\n\n"
     text += "| Market | Strategy | Hold | As of | Entries | Closed | Won | Lost | Open | Realized P&L | Unrealized P&L | Marked equity | Return % | Drawdown % |\n"
     text += "|---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n"
     for r in results:
