@@ -1,0 +1,327 @@
+{
+  "generated_at": "2026-10-23 02:42:29.793413+00:00",
+  "entry_start": "2026-10-01",
+  "entry_end_exclusive": "2026-11-01",
+  "price_basis": "Yahoo OHLC with auto_adjust=False; Adj Close not used; cash dividends not included in returns",
+  "notes": "Only entries dated October 1-31, 2026 are eligible; evaluation ends at the latest completed October session available at run time. Earlier bars are training/warm-up only. Each market/strategy/holding period is an independent flat-start account; one position at a time, no same-day reentry after exit, no FX pooling. Signals/stops use previous close; entry is next session open. Target and net RR are recalculated at that open using only earlier bars and matured historical examples. Current structural SL, historical TP and walk-forward filters apply. 25% allocation and 1.5% equity planned-risk caps; 15 bps/side; zero commissions/dividend cash. Stop-first on ambiguous daily bars; gap-stop losses can exceed plan. Positions still open at cutoff are NOT forced wins/losses: closed P&L and estimated-liquidation unrealized P&L are separate. No future October data is fabricated. This is a development-sample research backtest, with current-universe/survivorship bias, retrospective Yahoo data, and no independent live validation; not a guaranteed forecast.",
+  "coverage": {
+    "us:AMD": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "764b77581deed6230408d69a277800c450be5175cebf20467914deff83290f6c"
+    },
+    "us:AMZN": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "d004b85da790d7562510740b7a20289502644695b3ce39b8994a9ffdcd7685d5"
+    },
+    "us:AVGO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "2094e96b999a68340067197eb5ed83270732397264edc84f5cba3f6c918b172a"
+    },
+    "us:CAT": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "ed4bb01af509e33cadaa2c48cff24b5cfb2a4c45874e95fb6f8da604a6f1b14e"
+    },
+    "us:COST": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "90a0653a586f41ef79f6f98db9ef1d2057bf8c459dc2595662c5bb4fabdb5974"
+    },
+    "us:GE": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "64a64a16ae21bcf800ca26961e3bec4ad7ac4eee3536b0fc6f5b1183a4bc4203"
+    },
+    "us:GOOGL": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "4686d1ffd115325a98d75dce36b260c3c79fdb7a8befe8e66bc7d35a63c9474b"
+    },
+    "us:JPM": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "93fd2cb320cbe46d4deadb8aab0c6f3d72ad17e533deebf56a0b2f0d3a2b5752"
+    },
+    "us:LLY": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "a752bbe63c7ed309d333e8c462d7a3e8e12d05a40e061fc0a46f45291aa1db03"
+    },
+    "us:META": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "7066f17fc8df63465858917eee2a92ded367271dcc9ab6aea02b27a5d7605382"
+    },
+    "us:MSFT": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "6927dd42db4e726783a7d6092ae0a53c86226ea3016367b8c915a4507c65f2ea"
+    },
+    "us:NVDA": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "58743267eee19a08eda2aafb570d24ebb3b9e524d72dc00cc068fe5e1f59d4ef"
+    },
+    "us:QQQ": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "8dcb9fa2e16c142699871046a0addc6ff2049a9990320e46154632c174293169"
+    },
+    "us:SPY": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "c01d552b54e4972c169dc12dfac1354ed650b1354855a3f7e87f85b2d838b443"
+    },
+    "us:WMT": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "30bc1e1f08aa2f692301a4177d60801d281bd4ccd666d3e1de84a99c0f7033e2"
+    },
+    "us:XOM": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "c8b06942cc442f30931be276f12d439bf775a067dc1c861fca7d4ea4e3bb43a9"
+    },
+    "tsx:AC.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "894df8ef0552508c86f49e5f02148bf3f3f79af0675942fe87903c3974619796"
+    },
+    "tsx:BB.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "7168daac0a7e383698d8c3fbe555027f07355f12702f2038f34cc640f99acdb0"
+    },
+    "tsx:CGX.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "6d3497e5bd5ec1fa64a567b352d038dbbb6db0378ad82870163b75da809ce334"
+    },
+    "tsx:CJ.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "b5fecf08afc60477e06c87f45d8f7bf4d9bf36fc223e66903f98785ce74fc133"
+    },
+    "tsx:CNQ.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "672b7e72f7c8109fd219cff319b5b45270312dfb4003f68331d976692aea7024"
+    },
+    "tsx:CVE.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "ede2ac2f691ecd19303d5a44351a23111d0ce62971e2714307b4539ccdd3b7a5"
+    },
+    "tsx:ENB.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "14adf0ff2f633eedf78c4daa3eb121609eb5fb7211a3cbc38f74ef6327b1627a"
+    },
+    "tsx:POU.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "fac388032569c35c1f22530a93be744bb65062106599cfb67cfc6f9e3a3fed6b"
+    },
+    "tsx:RY.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "c4075be7eb6c0d9a0e44538417e1972dede5792d1ef41221b9fed55f5eb94507"
+    },
+    "tsx:VET.TO": {
+      "first": "2021-10-25",
+      "last": "2026-10-22",
+      "bars": 1254,
+      "sha256": "986d8a4c4d42011d3859ea57a37b987e9a42680b137223405d9fa7c92f47dd53"
+    }
+  },
+  "results": [
+    {
+      "strategy": "compression_family",
+      "max_hold_sessions": 5,
+      "starting_equity": 1000.0,
+      "entries": 0,
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": 0.0,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 1000.0,
+      "total_return_pct": 0.0,
+      "win_rate_closed_pct": null,
+      "max_marked_drawdown_pct": 0.0,
+      "asof": "2026-10-22",
+      "market": "us",
+      "currency": "USD"
+    },
+    {
+      "strategy": "compression_family",
+      "max_hold_sessions": 7,
+      "starting_equity": 1000.0,
+      "entries": 0,
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": 0.0,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 1000.0,
+      "total_return_pct": 0.0,
+      "win_rate_closed_pct": null,
+      "max_marked_drawdown_pct": 0.0,
+      "asof": "2026-10-22",
+      "market": "us",
+      "currency": "USD"
+    },
+    {
+      "strategy": "balanced_blend",
+      "max_hold_sessions": 5,
+      "starting_equity": 1000.0,
+      "entries": 0,
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": 0.0,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 1000.0,
+      "total_return_pct": 0.0,
+      "win_rate_closed_pct": null,
+      "max_marked_drawdown_pct": 0.0,
+      "asof": "2026-10-22",
+      "market": "us",
+      "currency": "USD"
+    },
+    {
+      "strategy": "balanced_blend",
+      "max_hold_sessions": 7,
+      "starting_equity": 1000.0,
+      "entries": 0,
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": 0.0,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 1000.0,
+      "total_return_pct": 0.0,
+      "win_rate_closed_pct": null,
+      "max_marked_drawdown_pct": 0.0,
+      "asof": "2026-10-22",
+      "market": "us",
+      "currency": "USD"
+    },
+    {
+      "strategy": "compression_family",
+      "max_hold_sessions": 5,
+      "starting_equity": 1000.0,
+      "entries": 0,
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": 0.0,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 1000.0,
+      "total_return_pct": 0.0,
+      "win_rate_closed_pct": null,
+      "max_marked_drawdown_pct": 0.0,
+      "asof": "2026-10-22",
+      "market": "tsx",
+      "currency": "CAD"
+    },
+    {
+      "strategy": "compression_family",
+      "max_hold_sessions": 7,
+      "starting_equity": 1000.0,
+      "entries": 0,
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": 0.0,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 1000.0,
+      "total_return_pct": 0.0,
+      "win_rate_closed_pct": null,
+      "max_marked_drawdown_pct": 0.0,
+      "asof": "2026-10-22",
+      "market": "tsx",
+      "currency": "CAD"
+    },
+    {
+      "strategy": "balanced_blend",
+      "max_hold_sessions": 5,
+      "starting_equity": 1000.0,
+      "entries": 0,
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": 0.0,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 1000.0,
+      "total_return_pct": 0.0,
+      "win_rate_closed_pct": null,
+      "max_marked_drawdown_pct": 0.0,
+      "asof": "2026-10-22",
+      "market": "tsx",
+      "currency": "CAD"
+    },
+    {
+      "strategy": "balanced_blend",
+      "max_hold_sessions": 7,
+      "starting_equity": 1000.0,
+      "entries": 0,
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": 0.0,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 1000.0,
+      "total_return_pct": 0.0,
+      "win_rate_closed_pct": null,
+      "max_marked_drawdown_pct": 0.0,
+      "asof": "2026-10-22",
+      "market": "tsx",
+      "currency": "CAD"
+    }
+  ]
+}
