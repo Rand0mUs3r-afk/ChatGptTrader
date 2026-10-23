@@ -1,0 +1,11 @@
+# Frozen original TSX universe; do not backfill newly selected movers into October
+VET.TO
+CNQ.TO
+AC.TO
+BB.TO
+CGX.TO
+CJ.TO
+POU.TO
+CVE.TO
+ENB.TO
+RY.TO

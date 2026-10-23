@@ -28,23 +28,43 @@ def session_window(calendar, now):
     return complete[-20:], future
 
 
-def price_plan(entry, stop, equity, bps=15):
+def price_plan(entry, stop, equity, bps=15, fractional=None):
     if not all(math.isfinite(x) and x > 0 for x in (entry, stop, equity)):
         raise ValueError("Prices and equity must be finite and positive")
     if bps not in (5, 15) or entry <= stop:
         raise ValueError("Invalid cost scenario or entry at/below stop")
+    if fractional is None:
+        fractional = os.environ.get("FRACTIONAL_SHARES", "false").strip().lower() in ("true", "1", "yes")
+    if not isinstance(fractional, bool):
+        raise ValueError("fractional must be boolean")
     slip = bps / 10000
     fill = entry * (1 + slip)
     risk_per_share = fill - stop * (1 - slip)
-    shares = min(math.floor(equity * 0.25 / fill),
-                 math.floor(equity * 0.015 / risk_per_share))
+    allocation_cap, risk_cap = equity*0.25, equity*0.015
+    limit = min(allocation_cap/fill, risk_cap/risk_per_share)
+    if fractional:
+        step = 0.001
+        shares = math.floor(limit/step)*step
+        while shares > 0 and (shares*fill > allocation_cap or shares*risk_per_share > risk_cap):
+            shares = max(0.0,shares-step)
+        shares = round(shares,3)
+        status = "OK" if shares > 0 else "FRACTION_STEP_TOO_SMALL"
+        if shares > 0 and shares*fill < 1.0:
+            shares, status = 0.0, "BELOW_MIN_NOTIONAL"
+    else:
+        step = 1.0
+        shares = min(math.floor(allocation_cap/fill),math.floor(risk_cap/risk_per_share))
+        status = "OK" if shares > 0 else ("WHOLE_SHARE_ALLOCATION_LIMIT" if fill > allocation_cap else "WHOLE_SHARE_RISK_LIMIT")
     target = entry + 2 * (entry - stop)
     return dict(provisional_entry=entry, stop=stop, provisional_target=target,
                 shares=shares, estimated_cost=shares*fill,
                 planned_stop_risk=shares*risk_per_share,
                 planned_target_profit=shares*(target*(1-slip)-fill),
-                max_open_for_one_share=min(equity*0.25/(1+slip),
-                    (equity*0.015+stop*(1-slip))/(1+slip)))
+                max_open_for_one_share=min(allocation_cap/(1+slip),
+                    (risk_cap+stop*(1-slip))/(1+slip)),
+                quantity_model="fractional_simulation" if fractional else "whole_share_simulation",
+                share_step=step,minimum_notional=1.0 if fractional else None,sizing_status=status,
+                execution_assumption="Simulation only; broker eligibility, precision and fractional SL/TP execution unverified")
 
 
 def main():

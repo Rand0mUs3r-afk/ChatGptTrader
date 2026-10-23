@@ -1,3 +1,4 @@
+# Original TSX watchlist
 VET.TO
 CNQ.TO
 AC.TO
@@ -8,3 +9,19 @@ POU.TO
 CVE.TO
 ENB.TO
 RY.TO
+
+# Selected recent native-TSX gainers; source snapshot dated 2026-10-21
+# Added 2026-10-22 for prospective scanning, not a historical point-in-time universe
+AFN.TO
+ABRA.TO
+ASTL.TO
+MTL.TO
+FTG.TO
+HPS-A.TO
+MDA.TO
+
+# TSX-listed ETFs: Canada, US, developed international equities, Canadian bonds
+VCN.TO
+VFV.TO
+VIU.TO
+VAB.TO
