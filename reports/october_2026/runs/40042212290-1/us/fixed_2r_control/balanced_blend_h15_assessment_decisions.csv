@@ -1,0 +1,3 @@
+ticker,entry_date,signal_date,entry_open,stop,target_model,nearest_confirmed_high,requires_resistance_break,assessed_target,assessed_net_rr,historical_examples,walkforward_examples,target_status,selected_raw_r,walkforward_mean_net_r
+AMZN,2026-10-01,2026-09-30,251.61000061035156,244.29332885742187,fixed_2r_control,257.5899963378906,True,266.24334411621095,1.71906426508676,,,EXPERIMENTAL_CANDIDATE,2.0,
+XOM,2026-10-22,2026-10-21,179.88999938964844,174.5709976196289,fixed_2r_control,,False,190.5280029296875,1.7232789481471453,,,EXPERIMENTAL_CANDIDATE,2.0,

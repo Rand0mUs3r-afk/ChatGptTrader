@@ -1,9 +1,9 @@
 {
-  "run_key": "40041325185-1",
+  "run_key": "40042212290-1",
   "market": "both",
   "share_mode": "fractional",
   "experiment": "15_session_empirical_targets",
   "source_commit": "f60225366c61af46b89f3c86c4d021889beeb239",
-  "results_json": "reports/october_2026/runs/40041325185-1/results.json",
-  "summary_markdown": "reports/october_2026/runs/40041325185-1/summary.md"
+  "results_json": "reports/october_2026/runs/40042212290-1/results.json",
+  "summary_markdown": "reports/october_2026/runs/40042212290-1/summary.md"
 }

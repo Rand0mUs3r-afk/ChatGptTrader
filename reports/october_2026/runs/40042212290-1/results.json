@@ -1,0 +1,629 @@
+{
+  "generated_at": "2026-10-23 23:54:40.266207+00:00",
+  "experiment": "15_session_empirical_targets",
+  "max_hold_sessions": 15,
+  "share_mode": "fractional",
+  "entry_start": "2026-10-01",
+  "entry_end_exclusive": "2026-11-01",
+  "price_basis": "Yahoo OHLC with auto_adjust=False; Adj Close not used; cash dividends not included in returns",
+  "target_grid": [
+    0.5,
+    0.75,
+    1.0,
+    1.25,
+    1.5,
+    2.0
+  ],
+  "notes": "EXPERIMENTAL OCTOBER-ENTRY RESEARCH, maximum 15 TRADING SESSIONS, counting entry as session one; SL/TP may exit sooner. October performance ends at the latest completed October session; later exits are not fabricated. Most recent entries may lack a complete 15-session outcome; open positions and full-horizon maturity are shown separately. Earlier bars are calibration-only. Portfolio dates are aligned, but calibration keeps each ticker's full available history, including for shorter-listed names. Compression and balanced blend retain original pattern stops; trend_family is an alternative trend/momentum-family signal, not a new SMA-pullback strategy. Stops are never tightened merely to improve RR. Empirical targets test the predefined raw-R grid [0.5,0.75,1,1.25,1.5,2] on nonoverlapping same-stock/same-strategy examples. At least 20 matured examples are needed; select the highest mean net R from at most 30 earlier examples, breaking ties toward the lower target. Each historical walk-forward selection uses only its earlier completed examples. Require at least 10 positive-training-edge walk-forward entries and positive mean walk-forward net R. Current target must cover modeled costs; there is NO unconditional 1.25 RR floor in empirical mode. Nearest confirmed resistance is a warning, not an automatic hard cap. These are fixed research choices, not validated optimal parameters. Historical hit rates and standard errors are descriptive, NOT calibrated future probabilities or guaranteed exits. The fixed-2R control is an unvalidated reference with its original 1.25 net-RR gate and no historical gates. Same universe dates, ranking, fractional assumptions, 25% allocation cap, 1.5% equity planned-risk cap and 15 bps/side. No commissions/dividend cash; daily stop-first and gap-risk assumptions; broker fractional protective orders unverified. Separate accounts, no FX pooling, no orders, no automatic strategy promotion. Current-universe/development-sample bias remains; original 5/7-session results stay preserved.",
+  "universes": {
+    "us": {
+      "not_yet_eligible": [],
+      "coverage": {
+        "AMD": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "4be6a9b7a0b20c8fcdd24f0c6540d2b11482348fc763df22815ae828de2ac78d"
+        },
+        "AMZN": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "7107bb30e8caeb7d8321774f4bf469d0660bdb9144c2ccd4b3b5311c538c4f08"
+        },
+        "AVGO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "c4bf5b8e2c861ae066bf56b7a4b67f469074e583fbb5ae3bdeec44d1c657b761"
+        },
+        "CAT": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "b57ed681224ec2856a24e6009bdb2806db363d6466b4da7e173671627e908bdf"
+        },
+        "COST": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "2e80ca3c6af416d18594e5a3121645d5c9691786a10a0f7ccfb7373c565a7055"
+        },
+        "GE": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "34f5fb7b1cb9e67ed54b94ed45c5946b403d1de5922a771c9ae7ced6d53d781a"
+        },
+        "GOOGL": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "ff60129bda47c07b64c087ad1b7695329f7b4cfd3494afb6335174138036b3ad"
+        },
+        "JPM": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "0972c49bb9b36975995a0ebfe922e95c086bf3c789ac642e4e848002abdcff46"
+        },
+        "LLY": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "9db9f5f9b0028eb471029beb445aa8d9c3b29fb8a574f4996bcf0e81862b0033"
+        },
+        "META": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "322488368b445673f23fbe427f735c868f771e977fa2c743578fb460a4008048"
+        },
+        "MSFT": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "5ec9e3f284c3fb4b8a4b94e80071954b26a5631a9d5e1f4a0bb7d82ce0f91658"
+        },
+        "NVDA": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "b71854395eec935dddba9c57fb254ec0d17e0ba0b780badb891280788e4d99f2"
+        },
+        "QQQ": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "ef8658b0143570158050b3b19fe0898c45a6f999615a147a08e370d26b432bd3"
+        },
+        "SPY": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "d2c191717be3d48282203cd68e0d8638e9805c4e403fbe3f9696cfcd22dce56f"
+        },
+        "WMT": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "ac431d2ca9282f39850f9290ae2613a97898016e37f0969dbeaff77411551daa"
+        },
+        "XOM": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "4be1ed568ebeb1832c18663d3c20d5e0750bf668be6f33930b264306a57f9fa2"
+        }
+      },
+      "portfolio_common_history_start": "2021-10-25"
+    },
+    "tsx": {
+      "not_yet_eligible": [],
+      "coverage": {
+        "ABRA.TO": {
+          "first": "2024-05-22",
+          "last": "2026-10-23",
+          "bars": 609,
+          "sha256": "744f3db5a99ec6d5c72c07704801f0d8e118c7547bc437e2c6a5064f4f4fbbc4"
+        },
+        "AC.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "94dc5c664c39a6dd426aa4ada6bf99a3d3e2dc314f869db0110fdcbb13195d05"
+        },
+        "AFN.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "455f2907cd8086f885eac5eb8ed0f2718395a4983ab5bbbf41d6fddea3aee3b2"
+        },
+        "ASTL.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "082759bbb3516b9d9d366d6aca9abe42a0f2b055e14f47d599f1ace199ebb263"
+        },
+        "BB.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "661150e7f427c96b2b47552ea280345b2c91b71fe615706440433bf2e15e1fea"
+        },
+        "CGX.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "7b45208dd5b2c24729f4c378e8c0dfbf81d4a420488ab8eeea01138d8cf0c8e1"
+        },
+        "CJ.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "e0461158bff2e913e47ccad55ce980bef053db80805fdda1e81bace05c9ba7df"
+        },
+        "CNQ.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "fc116885c1250da7a2490decf3b565d70ba13bbd7d3c3b6dcc3bd9046331ef17"
+        },
+        "CVE.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "10d4039a791f87b74679fa58a83638d7f55c7bf2710ca4a1e6164cf9409c8d75"
+        },
+        "ENB.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "23ec9542cbdfb6cc1429c74c78a4b8716f5ab2b121155153ae36138f4b1fc0d6"
+        },
+        "FTG.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "41cf8160273b54c654ad8ab7e996bf62dea04124f578e19a4db040558184cf50"
+        },
+        "HPS-A.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "7ea88a1f9f91705cfe02255770868f50e5be19c1d5e82fa6836df3e71b9cb246"
+        },
+        "MDA.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "5bdfc56c2a95dcf81c9b9089c5f8fa8318bddf7351c21719aad3ecc796d0bb68"
+        },
+        "MTL.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "b173b363278c7a622088efb90df28c2a907aed6f524c9976367cc06cf43e846e"
+        },
+        "POU.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "a30741a6b1ee237de6c6abb218e12c17f7f3a0e88aa1337203548761250de710"
+        },
+        "RY.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "8b4feb71cd6a1f63b47b6b5ee2bb2b092691294233eb2dc5234a5a2c84f22d6f"
+        },
+        "VAB.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "32c8106744ddce9b4c7085d87ea5686815510ccd5ca9a6c5c2fd85b5abfc5a5c"
+        },
+        "VCN.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "239cc78ed5908649ea4a0f757d3c3c6b08117389aaec813b582c8255b9b1db14"
+        },
+        "VET.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "4e693ff69937583817dd27ad16cc7ca34feca13910a3c50705408dbc29a49a27"
+        },
+        "VFV.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "bacbf183175db0f3a049e589b0e5777c1b7dbb9a47054519af6ff764bcd45869"
+        },
+        "VIU.TO": {
+          "first": "2021-10-25",
+          "last": "2026-10-23",
+          "bars": 1255,
+          "sha256": "d055ec9c3de4dd9e6189384cb1d1e28ae7275917712dba56e11c27eaf9dbb41a"
+        }
+      },
+      "portfolio_common_history_start": "2024-05-22"
+    }
+  },
+  "results": [
+    {
+      "strategy": "compression_family",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 3,
+      "closed_trades": 2,
+      "wins": 1,
+      "losses": 1,
+      "breakeven": 0,
+      "open_positions": 1,
+      "realized_net_pnl": 10.115938028253254,
+      "unrealized_estimated_liquidation_pnl": -6.669400341735822,
+      "ending_marked_equity": 1003.4465376865174,
+      "total_return_pct": 0.344653768651737,
+      "win_rate_closed_pct": 50.0,
+      "max_marked_drawdown_pct": 2.498812606691377,
+      "asof": "2026-10-23",
+      "market": "us",
+      "currency": "USD",
+      "variant": "empirical",
+      "raw_signal_checks": 24,
+      "evaluated_candidate_checks": 6,
+      "decision_counts": {
+        "EXPERIMENTAL_CANDIDATE": 3,
+        "INSUFFICIENT_WALKFORWARD": 2,
+        "SKIP_NO_CALIBRATION_EDGE": 1
+      },
+      "full_horizon_mature_entries": 1,
+      "early_exits": 2,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "compression_family",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 2,
+      "closed_trades": 2,
+      "wins": 1,
+      "losses": 1,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": -1.843242884580377,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 998.1567571154196,
+      "total_return_pct": -0.1843242884580376,
+      "win_rate_closed_pct": 50.0,
+      "max_marked_drawdown_pct": 2.2837154869935627,
+      "asof": "2026-10-23",
+      "market": "us",
+      "currency": "USD",
+      "variant": "fixed_2r_control",
+      "raw_signal_checks": 24,
+      "evaluated_candidate_checks": 2,
+      "decision_counts": {
+        "EXPERIMENTAL_CANDIDATE": 2
+      },
+      "full_horizon_mature_entries": 1,
+      "early_exits": 2,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "balanced_blend",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 2,
+      "closed_trades": 2,
+      "wins": 1,
+      "losses": 1,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": 11.911654151776588,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 1011.9116541517766,
+      "total_return_pct": 1.191165415177653,
+      "win_rate_closed_pct": 50.0,
+      "max_marked_drawdown_pct": 1.883846917994858,
+      "asof": "2026-10-23",
+      "market": "us",
+      "currency": "USD",
+      "variant": "empirical",
+      "raw_signal_checks": 59,
+      "evaluated_candidate_checks": 7,
+      "decision_counts": {
+        "SKIP_NONPOSITIVE_WALKFORWARD": 1,
+        "SKIP_NO_CALIBRATION_EDGE": 4,
+        "EXPERIMENTAL_CANDIDATE": 2
+      },
+      "full_horizon_mature_entries": 1,
+      "early_exits": 2,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "balanced_blend",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 2,
+      "closed_trades": 1,
+      "wins": 1,
+      "losses": 0,
+      "breakeven": 0,
+      "open_positions": 1,
+      "realized_net_pnl": 9.909112317138693,
+      "unrealized_estimated_liquidation_pnl": 3.8882755984039266,
+      "ending_marked_equity": 1013.7973879155426,
+      "total_return_pct": 1.3797387915542636,
+      "win_rate_closed_pct": 100.0,
+      "max_marked_drawdown_pct": 1.219053506134836,
+      "asof": "2026-10-23",
+      "market": "us",
+      "currency": "USD",
+      "variant": "fixed_2r_control",
+      "raw_signal_checks": 59,
+      "evaluated_candidate_checks": 2,
+      "decision_counts": {
+        "EXPERIMENTAL_CANDIDATE": 2
+      },
+      "full_horizon_mature_entries": 1,
+      "early_exits": 0,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "trend_family",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 5,
+      "closed_trades": 4,
+      "wins": 1,
+      "losses": 3,
+      "breakeven": 0,
+      "open_positions": 1,
+      "realized_net_pnl": -27.6564073511596,
+      "unrealized_estimated_liquidation_pnl": -6.427504992553693,
+      "ending_marked_equity": 965.9160876562867,
+      "total_return_pct": -3.408391234371333,
+      "win_rate_closed_pct": 25.0,
+      "max_marked_drawdown_pct": 3.9398458566098795,
+      "asof": "2026-10-23",
+      "market": "us",
+      "currency": "USD",
+      "variant": "empirical",
+      "raw_signal_checks": 104,
+      "evaluated_candidate_checks": 17,
+      "decision_counts": {
+        "SKIP_NO_CALIBRATION_EDGE": 11,
+        "SKIP_NONPOSITIVE_WALKFORWARD": 1,
+        "EXPERIMENTAL_CANDIDATE": 5
+      },
+      "full_horizon_mature_entries": 2,
+      "early_exits": 4,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "trend_family",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 4,
+      "closed_trades": 4,
+      "wins": 1,
+      "losses": 3,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": -6.781717897811973,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 993.218282102188,
+      "total_return_pct": -0.6781717897812012,
+      "win_rate_closed_pct": 25.0,
+      "max_marked_drawdown_pct": 2.4583035778162943,
+      "asof": "2026-10-23",
+      "market": "us",
+      "currency": "USD",
+      "variant": "fixed_2r_control",
+      "raw_signal_checks": 104,
+      "evaluated_candidate_checks": 4,
+      "decision_counts": {
+        "EXPERIMENTAL_CANDIDATE": 4
+      },
+      "full_horizon_mature_entries": 1,
+      "early_exits": 4,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "compression_family",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 1,
+      "closed_trades": 1,
+      "wins": 0,
+      "losses": 1,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": -6.790361859340237,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 993.2096381406598,
+      "total_return_pct": -0.6790361859340233,
+      "win_rate_closed_pct": 0.0,
+      "max_marked_drawdown_pct": 1.845994928700119,
+      "asof": "2026-10-23",
+      "market": "tsx",
+      "currency": "CAD",
+      "variant": "empirical",
+      "raw_signal_checks": 15,
+      "evaluated_candidate_checks": 1,
+      "decision_counts": {
+        "EXPERIMENTAL_CANDIDATE": 1
+      },
+      "full_horizon_mature_entries": 1,
+      "early_exits": 0,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "compression_family",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 1,
+      "closed_trades": 1,
+      "wins": 0,
+      "losses": 1,
+      "breakeven": 0,
+      "open_positions": 0,
+      "realized_net_pnl": -6.790361859340237,
+      "unrealized_estimated_liquidation_pnl": 0.0,
+      "ending_marked_equity": 993.2096381406598,
+      "total_return_pct": -0.6790361859340233,
+      "win_rate_closed_pct": 0.0,
+      "max_marked_drawdown_pct": 1.845994928700119,
+      "asof": "2026-10-23",
+      "market": "tsx",
+      "currency": "CAD",
+      "variant": "fixed_2r_control",
+      "raw_signal_checks": 15,
+      "evaluated_candidate_checks": 1,
+      "decision_counts": {
+        "EXPERIMENTAL_CANDIDATE": 1
+      },
+      "full_horizon_mature_entries": 1,
+      "early_exits": 0,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "balanced_blend",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 2,
+      "closed_trades": 1,
+      "wins": 0,
+      "losses": 1,
+      "breakeven": 0,
+      "open_positions": 1,
+      "realized_net_pnl": -7.809320784484839,
+      "unrealized_estimated_liquidation_pnl": 4.7449108982543935,
+      "ending_marked_equity": 996.9355901137695,
+      "total_return_pct": -0.3064409886230468,
+      "win_rate_closed_pct": 0.0,
+      "max_marked_drawdown_pct": 0.8220164636230493,
+      "asof": "2026-10-23",
+      "market": "tsx",
+      "currency": "CAD",
+      "variant": "empirical",
+      "raw_signal_checks": 42,
+      "evaluated_candidate_checks": 16,
+      "decision_counts": {
+        "SKIP_NONPOSITIVE_WALKFORWARD": 5,
+        "INSUFFICIENT_WALKFORWARD": 4,
+        "SKIP_NO_CALIBRATION_EDGE": 5,
+        "EXPERIMENTAL_CANDIDATE": 2
+      },
+      "full_horizon_mature_entries": 0,
+      "early_exits": 1,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "balanced_blend",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 2,
+      "closed_trades": 1,
+      "wins": 0,
+      "losses": 1,
+      "breakeven": 0,
+      "open_positions": 1,
+      "realized_net_pnl": -6.790361859340237,
+      "unrealized_estimated_liquidation_pnl": 1.7490065032177073,
+      "ending_marked_equity": 994.9586446438775,
+      "total_return_pct": -0.504135535612249,
+      "win_rate_closed_pct": 0.0,
+      "max_marked_drawdown_pct": 1.845994928700119,
+      "asof": "2026-10-23",
+      "market": "tsx",
+      "currency": "CAD",
+      "variant": "fixed_2r_control",
+      "raw_signal_checks": 42,
+      "evaluated_candidate_checks": 2,
+      "decision_counts": {
+        "EXPERIMENTAL_CANDIDATE": 2
+      },
+      "full_horizon_mature_entries": 1,
+      "early_exits": 0,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "trend_family",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 2,
+      "closed_trades": 1,
+      "wins": 0,
+      "losses": 1,
+      "breakeven": 0,
+      "open_positions": 1,
+      "realized_net_pnl": -6.790361859340237,
+      "unrealized_estimated_liquidation_pnl": -10.315824990963936,
+      "ending_marked_equity": 982.8938131496958,
+      "total_return_pct": -1.7106186850304184,
+      "win_rate_closed_pct": 0.0,
+      "max_marked_drawdown_pct": 2.367973719198117,
+      "asof": "2026-10-23",
+      "market": "tsx",
+      "currency": "CAD",
+      "variant": "empirical",
+      "raw_signal_checks": 89,
+      "evaluated_candidate_checks": 7,
+      "decision_counts": {
+        "SKIP_NONPOSITIVE_WALKFORWARD": 1,
+        "EXPERIMENTAL_CANDIDATE": 2,
+        "SKIP_NO_CALIBRATION_EDGE": 3,
+        "INSUFFICIENT_WALKFORWARD": 1
+      },
+      "full_horizon_mature_entries": 1,
+      "early_exits": 0,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    },
+    {
+      "strategy": "trend_family",
+      "max_hold_sessions": 15,
+      "starting_equity": 1000.0,
+      "quantity_model": "fractional_simulation",
+      "entries": 3,
+      "closed_trades": 2,
+      "wins": 0,
+      "losses": 2,
+      "breakeven": 0,
+      "open_positions": 1,
+      "realized_net_pnl": -24.88701829007175,
+      "unrealized_estimated_liquidation_pnl": 4.020393907177932,
+      "ending_marked_equity": 979.1333756171061,
+      "total_return_pct": -2.0866624382893884,
+      "win_rate_closed_pct": 0.0,
+      "max_marked_drawdown_pct": 2.7517490356754593,
+      "asof": "2026-10-23",
+      "market": "tsx",
+      "currency": "CAD",
+      "variant": "fixed_2r_control",
+      "raw_signal_checks": 89,
+      "evaluated_candidate_checks": 4,
+      "decision_counts": {
+        "EXPERIMENTAL_CANDIDATE": 3,
+        "SKIP_LOW_NET_RR": 1
+      },
+      "full_horizon_mature_entries": 2,
+      "early_exits": 2,
+      "activity_status": "RESEARCH_NOT_VALIDATED"
+    }
+  ]
+}
