@@ -1,7 +1,9 @@
-"""Bounded OHLCV retries with explicit diagnostics; never fill or drop bad prices."""
+"""Validated Yahoo OHLC, independent of Adj Close; never fill or drop bad prices."""
 import time
 import numpy as np
 import pandas as pd
+
+PRICE_BASIS = "Yahoo OHLC with auto_adjust=False; Adj Close not used; cash dividends not included in returns"
 
 
 def describe(raw):
@@ -14,7 +16,8 @@ def describe(raw):
     bad = ~np.isfinite(values.to_numpy(dtype=float))
     counts = {str(c):int(bad[:,i].sum()) for i,c in enumerate(values.columns) if bad[:,i].any()}
     dates = [str(d) for d in values.index[bad.any(axis=1)][:5]]
-    return f"rows={len(raw)}; nonfinite_by_column={counts}; first_bad_dates={dates}"
+    adj_bad = int(pd.to_numeric(raw["Adj Close"],errors="coerce").isna().sum()) if "Adj Close" in raw else "not returned"
+    return f"rows={len(raw)}; nonfinite_by_column={counts}; first_bad_dates={dates}; unused_adj_close_missing={adj_bad}"
 
 
 def fetch_daily(ticker, start, cutoff, required, fetcher=None, validator=None, sleeper=time.sleep):
@@ -22,7 +25,7 @@ def fetch_daily(ticker, start, cutoff, required, fetcher=None, validator=None, s
         from run_recent_blend import prepare
         validator = prepare
     kwargs = dict(start=str(pd.Timestamp(start).date()),end=str(pd.Timestamp(cutoff).date()),
-                  interval="1d",auto_adjust=True,actions=False)
+                  interval="1d",auto_adjust=False,actions=False)
     if fetcher is None:
         import yfinance as yf
         debug = getattr(getattr(yf,"config",None),"debug",None)
@@ -33,7 +36,7 @@ def fetch_daily(ticker, start, cutoff, required, fetcher=None, validator=None, s
         fetcher = lambda: yf.Ticker(ticker).history(**kwargs)
     last_error, details = None, "no response"
     for attempt in range(1,4):
-        print(f"Fetching {ticker}: attempt {attempt}/3; start={kwargs['start']}; end_exclusive={kwargs['end']}",flush=True)
+        print(f"Fetching {ticker}: attempt {attempt}/3; start={kwargs['start']}; end_exclusive={kwargs['end']}; auto_adjust=False",flush=True)
         details = "no response"
         try:
             raw = fetcher()
@@ -41,7 +44,8 @@ def fetch_daily(ticker, start, cutoff, required, fetcher=None, validator=None, s
             frame = validator(raw,cutoff)
             if len(frame) < len(required) or not frame.index[-len(required):].equals(required):
                 raise ValueError("Missing/stale expected exchange sessions")
-            print(f"Validated {ticker}: {details}",flush=True)
+            frame.attrs["price_basis"] = PRICE_BASIS
+            print(f"Validated {ticker}: {details}; {PRICE_BASIS}",flush=True)
             return frame
         except Exception as exc:
             last_error = exc

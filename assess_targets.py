@@ -5,6 +5,7 @@ import runpy
 from pathlib import Path
 import numpy as np
 import pandas as pd
+from checked_history import PRICE_BASIS
 
 MIN_TRAIN, MIN_FORWARD, MIN_NET_RR, SLIP = 20, 10, 1.25, 0.0015
 
@@ -117,6 +118,8 @@ def upgrade(output="reports/latest_setups"):
     report = json.loads((out/"setups.json").read_text(encoding="utf-8"))
     if report.get("status") != "ok":
         raise ValueError("Unsuccessful base scan")
+    report["price_basis"] = PRICE_BASIS
+    (out/"price_basis.txt").write_text(PRICE_BASIS+"\n",encoding="utf-8")
     for name in ("setups.json","setups.csv","summary.md"):
         (out/("baseline_2r_"+name)).write_bytes((out/name).read_bytes())
     cache, audits = {}, {}
@@ -128,7 +131,7 @@ def upgrade(output="reports/latest_setups"):
         try:
             if ticker not in cache:
                 raw = yf.Ticker(ticker).history(start=str((cutoff-pd.DateOffset(years=5)).date()),
-                    end=str(cutoff.date()),interval="1d",auto_adjust=True,actions=False,raise_errors=True)
+                    end=str(cutoff.date()),interval="1d",auto_adjust=False,actions=False,raise_errors=True)
                 bars = prepare(raw,cutoff)
                 calendar = xcals.get_calendar(report["calendar"])
                 sessions = pd.DatetimeIndex(calendar.sessions_in_range(bars.index[0],bars.index[-1])).tz_localize(None).normalize()
@@ -164,6 +167,7 @@ def upgrade(output="reports/latest_setups"):
             for rank,row in enumerate(group,1):
                 row["provisional_rank"] = rank
     notes = ("EXPERIMENTAL RESEARCH ONLY. Stops and share sizing unchanged; no orders. "
+        + PRICE_BASIS + ". "
         "Target cap is median stop-truncated favorable excursion in raw R from at least 20 prior, nonoverlapping "
         "same-ticker/same-strategy setups over up to five years, separately for each holding period. "
         "Cap at the nearest confirmed 5-bar swing high from the last 60 sessions, less 0.1 ATR(14); no such high "
@@ -173,7 +177,7 @@ def upgrade(output="reports/latest_setups"):
         "These are disclosed conservative engineering heuristics, NOT optimized or independently validated thresholds. "
         "15 bps/side; stop-first on ambiguous daily bars; ignore unknown stop-day highs when measuring excursion. "
         "Historical results are per-unit signal diagnostics, not a portfolio backtest; commissions, news and earnings "
-        "are not modeled. Current-universe bias and retrospective adjusted data limit evidence. "
+        "are not modeled. Current-universe bias and retrospective Yahoo data limit evidence. "
         "Insufficient evidence is not a buy. Both scan equity and prices use the selected market currency. "
         "All targets are provisional at signal close; rerun the assessment at actual entry. Original 2R reports are retained as baseline files.")
     report["target_method"] = notes
