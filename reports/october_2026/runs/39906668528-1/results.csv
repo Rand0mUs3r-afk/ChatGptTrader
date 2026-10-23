@@ -1,0 +1,9 @@
+strategy,max_hold_sessions,starting_equity,quantity_model,entries,closed_trades,wins,losses,breakeven,open_positions,realized_net_pnl,unrealized_estimated_liquidation_pnl,ending_marked_equity,total_return_pct,win_rate_closed_pct,max_marked_drawdown_pct,asof,market,currency
+compression_family,5,1000.0,fractional_simulation,0,0,0,0,0,0,0.0,0.0,1000.0,0.0,,0.0,2026-10-22,us,USD
+compression_family,7,1000.0,fractional_simulation,0,0,0,0,0,0,0.0,0.0,1000.0,0.0,,0.0,2026-10-22,us,USD
+balanced_blend,5,1000.0,fractional_simulation,0,0,0,0,0,0,0.0,0.0,1000.0,0.0,,0.0,2026-10-22,us,USD
+balanced_blend,7,1000.0,fractional_simulation,0,0,0,0,0,0,0.0,0.0,1000.0,0.0,,0.0,2026-10-22,us,USD
+compression_family,5,1000.0,fractional_simulation,0,0,0,0,0,0,0.0,0.0,1000.0,0.0,,0.0,2026-10-22,tsx,CAD
+compression_family,7,1000.0,fractional_simulation,0,0,0,0,0,0,0.0,0.0,1000.0,0.0,,0.0,2026-10-22,tsx,CAD
+balanced_blend,5,1000.0,fractional_simulation,0,0,0,0,0,0,0.0,0.0,1000.0,0.0,,0.0,2026-10-22,tsx,CAD
+balanced_blend,7,1000.0,fractional_simulation,0,0,0,0,0,0,0.0,0.0,1000.0,0.0,,0.0,2026-10-22,tsx,CAD
