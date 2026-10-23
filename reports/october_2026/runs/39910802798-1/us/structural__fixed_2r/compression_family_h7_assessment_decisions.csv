@@ -1,0 +1,3 @@
+ticker,signal_date,entry_date,entry_open,stop,atr14,stop_distance_atr,fixed_2r_reference,empirical_target_cap,resistance_target_cap,binding_target_constraint,assessed_target,net_rr,status,historical_examples,walkforward_examples,walkforward_mean_net_r,historical_gate
+AMD,2026-10-01,2026-10-02,635.9500122070312,577.2174922398159,25.674992152622767,2.28753799097912,753.415052141462,,,fixed_2r_benchmark,753.415052141462,1.9054775321523296,EXPERIMENTAL_CANDIDATE,,,,NOT_APPLIED_BENCHMARK_ONLY
+COST,2026-10-12,2026-10-13,965.72998046875,935.3853519984654,16.036433628627233,1.8922304779857864,1026.4192374093193,,,fixed_2r_benchmark,1026.4192374093193,1.738176560652726,EXPERIMENTAL_CANDIDATE,,,,NOT_APPLIED_BENCHMARK_ONLY
