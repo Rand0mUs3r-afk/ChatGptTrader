@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       market:
-        description: 'October-only backtest; separate currency/account scenarios.'
+        description: 'October-only stop/target comparison; independent account scenarios.'
         required: true
         default: both
         type: choice
@@ -44,10 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Check out corrected October-only fractional backtest
+      - name: Check out reviewed October model comparison
         uses: actions/checkout@v4
         with:
-          ref: 8a9640ff2dc3738e24c10bb49b87a8f48fabb3e9
+          ref: 2ffb5fc29d2c5346498779a452fd19df7dc4fdb8
           persist-credentials: true
       - uses: actions/setup-python@v5
         with:
@@ -59,7 +59,7 @@ jobs:
             requirements-scanner.txt
       - name: Install dependencies
         run: python -m pip install -e '.[dev]' -r requirements-scanner.txt
-      - name: Run whole and fractional regression tests
+      - name: Run model-comparison, whole-share and fractional regression tests
         env:
           FRACTIONAL_SHARES: 'false'
         run: python -m pytest -q
@@ -72,30 +72,30 @@ jobs:
           if path.exists():
               shutil.rmtree(path)
           PY
-      - name: Run October-only backtest through latest completed October session
+      - name: Compare October-only stop and target bundles
         env:
           BT_MARKET: ${{ inputs.market || 'both' }}
           BT_EQUITY_US: ${{ inputs.equity_us || '1000' }}
           BT_EQUITY_TSX: ${{ inputs.equity_tsx || '1000' }}
           BT_SHARE_MODE: ${{ inputs.share_mode || 'fractional' }}
-        run: python backtest_october_2026.py --market "$BT_MARKET" --equity-us "$BT_EQUITY_US" --equity-tsx "$BT_EQUITY_TSX" --share-mode "$BT_SHARE_MODE"
-      - name: Publish October backtest summary
+        run: python compare_october_models.py --market "$BT_MARKET" --equity-us "$BT_EQUITY_US" --equity-tsx "$BT_EQUITY_TSX" --share-mode "$BT_SHARE_MODE"
+      - name: Publish October comparison and rejection audit
         if: always()
         run: |
           if [ -f reports/october_2026/summary.md ]; then
             cat reports/october_2026/summary.md >> "$GITHUB_STEP_SUMMARY"
           else
-            echo 'October backtest did not finish. Check the first failed step; no new performance results are available.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'October comparison did not finish. Check the first failed step; no new performance results are available.' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload complete reports and price snapshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: october-2026-backtest-${{ github.run_id }}-${{ github.run_attempt }}
+          name: october-2026-comparison-${{ github.run_id }}-${{ github.run_attempt }}
           path: reports/october_2026/
           if-no-files-found: warn
           retention-days: 14
-      - name: Archive new run on latest experiment branch without overwriting history
+      - name: Archive comparison on latest experiment branch without overwriting history
         if: success()
         env:
           REPORT_MARKET: ${{ inputs.market || 'both' }}
@@ -128,15 +128,15 @@ jobs:
                   destination.parent.mkdir(parents=True, exist_ok=True)
                   shutil.copyfile(item, destination)
           pointer = dict(run_key=key, market=os.environ.get("REPORT_MARKET", "both"),
-              share_mode=os.environ.get("REPORT_SHARE_MODE", "fractional"),
-              source_commit="8a9640ff2dc3738e24c10bb49b87a8f48fabb3e9",
+              share_mode=os.environ.get("REPORT_SHARE_MODE", "fractional"), comparison=True,
+              source_commit="2ffb5fc29d2c5346498779a452fd19df7dc4fdb8",
               results_json=str(relative / "results.json"), summary_markdown=str(relative / "summary.md"))
           (Path(os.environ["PUBLISH_DIR"]) / "reports/october_2026/latest_run.json").write_text(json.dumps(pointer, indent=2) + "\n", encoding="utf-8")
           PY
             git -C "$publish_dir" config user.name 'github-actions[bot]'
             git -C "$publish_dir" config user.email 'github-actions[bot]@users.noreply.github.com'
             git -C "$publish_dir" add -f -- "reports/october_2026/runs/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" reports/october_2026/latest_run.json
-            git -C "$publish_dir" commit -m "Record October backtest run $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT"
+            git -C "$publish_dir" commit -m "Record October comparison run $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT"
             if git -C "$publish_dir" push origin HEAD:refs/heads/experiments/recent-weighted-swing-blend; then
               git worktree remove "$publish_dir"
               exit 0
