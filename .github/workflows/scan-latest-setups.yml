@@ -15,17 +15,25 @@ on:
         required: true
         default: '1000'
         type: string
+      target_mode:
+        description: 'Experimental data-checked targets, or original fixed-2R baseline. Research only; no orders.'
+        required: true
+        default: data_checked
+        type: choice
+        options:
+          - data_checked
+          - baseline_2r
 permissions:
   contents: read
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Check out reviewed US and TSX scanner with explanations
+      - name: Check out reviewed scanner with experimental target assessment
         uses: actions/checkout@v4
         with:
-          ref: fe4303b5c91ee06ac3d522fc80a751b0cd9a7245
+          ref: 4f7f5c82018873872d6cda9ba8b8217b9d883472
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -39,22 +47,30 @@ jobs:
         run: python -m pip install -e '.[dev]' -r requirements-scanner.txt
       - name: Run repository tests
         run: python -m pytest -q
-      - name: Scan and explain latest completed session for selected exchange
+      - name: Scan and assess latest completed session
         env:
           SCAN_MARKET: ${{ inputs.market }}
           SCAN_EQUITY: ${{ inputs.equity }}
-        run: python explain_scan.py --market "$SCAN_MARKET" --equity "$SCAN_EQUITY"
+          TARGET_MODE: ${{ inputs.target_mode }}
+        run: |
+          case "$TARGET_MODE" in
+            data_checked) python assess_targets.py --market "$SCAN_MARKET" --equity "$SCAN_EQUITY" ;;
+            baseline_2r) python explain_scan.py --market "$SCAN_MARKET" --equity "$SCAN_EQUITY" ;;
+            *) echo 'Invalid target mode' >&2; exit 1 ;;
+          esac
       - name: Publish scan summary
         if: always()
         run: |
           if [ -f reports/latest_setups/summary.md ]; then
             cat reports/latest_setups/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No scan report was produced. Check the first failed step; this is not a no-setups result.' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload scan reports and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: latest-setup-scan-${{ inputs.market }}-${{ github.run_id }}
+          name: latest-setup-scan-${{ inputs.market }}-${{ inputs.target_mode }}-${{ github.run_id }}
           path: reports/latest_setups/
           if-no-files-found: warn
           retention-days: 14
