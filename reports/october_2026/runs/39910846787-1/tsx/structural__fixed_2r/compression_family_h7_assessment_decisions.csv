@@ -1,0 +1,3 @@
+ticker,signal_date,entry_date,entry_open,stop,atr14,stop_distance_atr,fixed_2r_reference,empirical_target_cap,resistance_target_cap,binding_target_constraint,assessed_target,net_rr,status,historical_examples,walkforward_examples,walkforward_mean_net_r,historical_gate
+BB.TO,2026-09-30,2026-10-01,12.800000190734863,11.600178548267909,0.7592856543404716,1.5801979605543053,15.199643475668772,,,fixed_2r_benchmark,15.199643475668772,1.9068279195545819,EXPERIMENTAL_CANDIDATE,,,,NOT_APPLIED_BENCHMARK_ONLY
+CJ.TO,2026-10-09,2026-10-13,12.989999771118164,11.816249591963631,0.3350001062665667,3.5037307666420716,15.33750012942723,,,fixed_2r_benchmark,15.33750012942723,1.9034567276576628,EXPERIMENTAL_CANDIDATE,,,,NOT_APPLIED_BENCHMARK_ONLY
