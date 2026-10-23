@@ -1,0 +1,2 @@
+ticker,entry_date,signal_date,entry_open,stop,target_model,nearest_confirmed_high,requires_resistance_break,assessed_target,assessed_net_rr,historical_examples,walkforward_examples,target_status,selected_raw_r,walkforward_mean_net_r
+BB.TO,2026-10-01,2026-09-30,12.800000190734863,11.03066701889038,fixed_2r_control,12.949999809265137,True,16.33866653442383,1.9361800836985328,,,EXPERIMENTAL_CANDIDATE,2.0,
