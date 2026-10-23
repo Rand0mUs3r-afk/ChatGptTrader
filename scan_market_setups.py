@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import pandas as pd
 from scan_latest_setups import price_plan, session_window
+from checked_history import fetch_daily
 
 MARKETS = {
     "us": ("config/tickers.txt", "XNYS", "USD"),
@@ -21,9 +22,8 @@ def market_settings(market):
 
 def main():
     import exchange_calendars as xcals
-    import yfinance as yf
     from swingbot.scanner import load_tickers
-    from run_recent_blend import FAMILIES, candidate, features, prepare
+    from run_recent_blend import FAMILIES, candidate, features
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--market", choices=MARKETS, required=True)
     parser.add_argument("--equity", type=float, required=True,
@@ -44,12 +44,7 @@ def main():
         raise ValueError("Empty or invalid market watchlist")
     data, coverage = {}, {}
     for ticker in tickers:
-        raw = yf.Ticker(ticker).history(
-            start=str((cutoff-pd.DateOffset(months=6)).date()), end=str(cutoff.date()),
-            interval="1d", auto_adjust=True, actions=False, raise_errors=True)
-        frame = prepare(raw, cutoff)
-        if len(frame) < 20 or not frame.index[-20:].equals(required):
-            raise ValueError(f"{ticker}: missing/stale sessions; no partial-universe scan")
+        frame = fetch_daily(ticker, cutoff-pd.DateOffset(months=6), cutoff, required)
         frame.to_csv(out/f"bars_{ticker}.csv", index_label="Date")
         data[ticker] = features(frame)[-1]
         coverage[ticker] = dict(bars=len(frame), latest=str(frame.index[-1].date()))
