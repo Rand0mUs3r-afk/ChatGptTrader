@@ -47,7 +47,7 @@ jobs:
       - name: Check out reviewed 2026 YTD 45-session experiment
         uses: actions/checkout@v4
         with:
-          ref: 27545ee464e0c591f7afea522495a88b0df6ce39
+          ref: dad7052c9dc33f45ac1143f935035811b3c3da63
           persist-credentials: true
       - uses: actions/setup-python@v5
         with:
@@ -130,7 +130,7 @@ jobs:
           pointer = dict(run_key=key,experiment='2026_ytd_45_session_empirical_targets',
               entry_start='2026-01-01',max_hold_sessions=45,
               market=os.environ.get('REPORT_MARKET','both'),share_mode=os.environ.get('REPORT_SHARE_MODE','fractional'),
-              source_commit='27545ee464e0c591f7afea522495a88b0df6ce39',
+              source_commit='dad7052c9dc33f45ac1143f935035811b3c3da63',
               results_json=str(relative/'results.json'),summary_markdown=str(relative/'summary.md'))
           (Path(os.environ['PUBLISH_DIR'])/'reports/year_2026_45_session/latest_run.json').write_text(json.dumps(pointer,indent=2)+'\n',encoding='utf-8')
           PY
