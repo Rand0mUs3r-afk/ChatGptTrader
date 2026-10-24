@@ -1,0 +1,27 @@
+{
+  "market": "us",
+  "excluded": [
+    "AMD"
+  ],
+  "reason": "USER_REQUESTED_AFTER_INVALID_2026_10_23_CLOSE",
+  "effective_tickers": [
+    "AMZN",
+    "AVGO",
+    "CAT",
+    "COST",
+    "GE",
+    "GOOGL",
+    "JPM",
+    "LLY",
+    "META",
+    "MSFT",
+    "NVDA",
+    "QQQ",
+    "SPY",
+    "WMT",
+    "XOM"
+  ],
+  "effective_config_sha256": "bfa590c05d7e677d12d974d4704a7efb4e8d0aa2aa5015bd91bb205eed20a7ef",
+  "source_commit": "dad7052c9dc33f45ac1143f935035811b3c3da63",
+  "workflow_commit": "fada1a5bd09e2d68d4435ad8d0e762130280ae57"
+}

@@ -1,0 +1,17 @@
+{
+  "run_key": "40049451423-1",
+  "experiment": "2026_ytd_45_session_empirical_targets",
+  "entry_start": "2026-01-01",
+  "max_hold_sessions": 45,
+  "user_requested_exclusions": [
+    "AMD"
+  ],
+  "exclusion_market": "us",
+  "market": "both",
+  "share_mode": "fractional",
+  "source_commit": "dad7052c9dc33f45ac1143f935035811b3c3da63",
+  "workflow_commit": "fada1a5bd09e2d68d4435ad8d0e762130280ae57",
+  "universe_exclusions_json": "reports/year_2026_45_session/runs/40049451423-1/universe_exclusions.json",
+  "results_json": "reports/year_2026_45_session/runs/40049451423-1/results.json",
+  "summary_markdown": "reports/year_2026_45_session/runs/40049451423-1/summary.md"
+}
