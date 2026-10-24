@@ -1,0 +1,27 @@
+{
+  "market": "us",
+  "excluded": [
+    "AMD",
+    "AMZN"
+  ],
+  "reason": "USER_REQUESTED_PERMANENT_WATCHLIST_REMOVALS",
+  "effective_tickers": [
+    "AVGO",
+    "CAT",
+    "COST",
+    "GE",
+    "GOOGL",
+    "JPM",
+    "LLY",
+    "META",
+    "MSFT",
+    "NVDA",
+    "QQQ",
+    "SPY",
+    "WMT",
+    "XOM"
+  ],
+  "effective_config_sha256": "6f4e306ec56771949e7833165c84479f03a1af353a485cb140ff49d72c79f6fe",
+  "source_commit": "ab8e7af0fac29dd6450468fc14a3f4529b131f7d",
+  "workflow_commit": "5e4e418bbe0b608f5338db79fdf953222483c404"
+}
