@@ -1,0 +1,49 @@
+{
+  "excluded_us_tickers": [
+    "AMD",
+    "AMZN"
+  ],
+  "source_us_tickers": [
+    "AVGO",
+    "CAT",
+    "COST",
+    "GE",
+    "GOOGL",
+    "JPM",
+    "LLY",
+    "META",
+    "MSFT",
+    "NVDA",
+    "QQQ",
+    "SPY",
+    "WMT",
+    "XOM"
+  ],
+  "source_tsx_tickers": [
+    "ABRA.TO",
+    "AC.TO",
+    "AFN.TO",
+    "ASTL.TO",
+    "BB.TO",
+    "CGX.TO",
+    "CJ.TO",
+    "CNQ.TO",
+    "CVE.TO",
+    "ENB.TO",
+    "FTG.TO",
+    "HPS-A.TO",
+    "MDA.TO",
+    "MTL.TO",
+    "POU.TO",
+    "RY.TO",
+    "VAB.TO",
+    "VCN.TO",
+    "VET.TO",
+    "VFV.TO",
+    "VIU.TO"
+  ],
+  "us_config_sha256": "6f4e306ec56771949e7833165c84479f03a1af353a485cb140ff49d72c79f6fe",
+  "tsx_config_sha256": "366d8f18b7f537bc330dfaafe78a093e7d54eaba6eb07313d7bcd26dfa8e1c2d",
+  "source_commit": "4103c8474b0502aa2c291795983147b7311a2d05",
+  "workflow_commit": "b42c402551e92cb9ea17e37659fe4dc86c54d310"
+}
