@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       market:
-        description: '2026 YTD entries; maximum 45 trading sessions; AMD excluded from US universe.'
+        description: '2026 YTD entries; 45 trading sessions; corrected long history; AMD and AMZN excluded.'
         required: true
         default: both
         type: choice
@@ -44,10 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Check out reviewed 2026 YTD 45-session experiment
+      - name: Check out reviewed history-window fix and permanent watchlist removals
         uses: actions/checkout@v4
         with:
-          ref: dad7052c9dc33f45ac1143f935035811b3c3da63
+          ref: ab8e7af0fac29dd6450468fc14a3f4529b131f7d
           persist-credentials: true
       - uses: actions/setup-python@v5
         with:
@@ -59,7 +59,7 @@ jobs:
             requirements-scanner.txt
       - name: Install dependencies
         run: python -m pip install -e '.[dev]' -r requirements-scanner.txt
-      - name: Run 2026 window, 45-session exit, causality and regression tests
+      - name: Run long-history, sample-feasibility, causality and regression tests
         env:
           FRACTIONAL_SHARES: 'false'
         run: python -m pytest -q
@@ -72,7 +72,7 @@ jobs:
           if path.exists():
               shutil.rmtree(path)
           PY
-      - name: Exclude only AMD in temporary US config and record effective universe
+      - name: Verify permanent AMD and AMZN removals and record source universe
         run: |
           python - <<'PY'
           import hashlib
@@ -81,63 +81,61 @@ jobs:
           from pathlib import Path
           from swingbot.scanner import load_tickers
           path = Path('config/tickers.txt')
-          before = set(load_tickers(str(path)))
-          if 'AMD' not in before:
-              raise ValueError('Expected AMD in pinned source universe')
-          lines = path.read_text(encoding='utf-8').splitlines()
-          path.write_text('\n'.join(line for line in lines if line.strip() != 'AMD')+'\n',encoding='utf-8')
-          after = set(load_tickers(str(path)))
-          if after != before-{'AMD'}:
-              raise ValueError('Unexpected universe change; refusing to run')
+          tickers = set(load_tickers(str(path)))
+          if tickers & {'AMD','AMZN'}:
+              raise ValueError('AMD or AMZN unexpectedly present in pinned watchlist')
           out = Path('reports/year_2026_45_session')
           out.mkdir(parents=True,exist_ok=True)
-          audit = dict(market='us',excluded=['AMD'],reason='USER_REQUESTED_AFTER_INVALID_2026_10_23_CLOSE',
-              effective_tickers=sorted(after),effective_config_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
-              source_commit='dad7052c9dc33f45ac1143f935035811b3c3da63',workflow_commit=os.environ['GITHUB_SHA'])
+          audit = dict(market='us',excluded=['AMD','AMZN'],reason='USER_REQUESTED_PERMANENT_WATCHLIST_REMOVALS',
+              effective_tickers=sorted(tickers),effective_config_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+              source_commit='ab8e7af0fac29dd6450468fc14a3f4529b131f7d',workflow_commit=os.environ['GITHUB_SHA'])
           (out/'universe_exclusions.json').write_text(json.dumps(audit,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(audit,indent=2))
           PY
-      - name: Run 2026 YTD 45-session research without AMD
+      - name: Run corrected-history 2026 YTD 45-session research
         env:
           BT_MARKET: ${{ inputs.market || 'both' }}
           BT_EQUITY_US: ${{ inputs.equity_us || '1000' }}
           BT_EQUITY_TSX: ${{ inputs.equity_tsx || '1000' }}
           BT_SHARE_MODE: ${{ inputs.share_mode || 'fractional' }}
         run: python year_2026_45_session.py --market "$BT_MARKET" --equity-us "$BT_EQUITY_US" --equity-tsx "$BT_EQUITY_TSX" --share-mode "$BT_SHARE_MODE"
-      - name: Disclose user-requested AMD exclusion in successful results
+      - name: Record history-fix version and permanent exclusions in successful results
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           out = Path('reports/year_2026_45_session')
           audit = json.loads((out/'universe_exclusions.json').read_text(encoding='utf-8'))
-          note = 'AMD is explicitly excluded from the US universe at the user request after an invalid October 23 Close. The US universe differs from earlier runs; this is not an identical-universe comparison. Shared repository watchlists and all other data validation and eligibility rules remain unchanged.'
+          note = 'HISTORY-WINDOW FIX: the requested longer history is retained rather than truncated to five years. AMD and AMZN are absent from the pinned US source watchlist by user request. Results differ in history coverage and US universe from earlier runs; this is not an identical-universe or target-distance-only comparison. Evidence thresholds are unchanged, and feasible sample counts do not establish a trading edge.'
           path = out/'results.json'
           report = json.loads(path.read_text(encoding='utf-8'))
           report['user_requested_universe_exclusions'] = audit
+          report['history_window_fix'] = True
+          report['source_commit'] = audit['source_commit']
+          report['workflow_commit'] = audit['workflow_commit']
           report['notes'] = note+' '+report['notes']
           path.write_text(json.dumps(report,indent=2,allow_nan=False)+'\n',encoding='utf-8')
           path = out/'summary.md'
           heading,body = path.read_text(encoding='utf-8').split('\n',1)
-          path.write_text(heading+' (AMD excluded from US universe)\n\n'+note+'\n'+body,encoding='utf-8')
+          path.write_text(heading+' (history corrected; AMD and AMZN excluded)\n\n'+note+'\n'+body,encoding='utf-8')
           PY
-      - name: Publish YTD research summary and maturity warnings
+      - name: Publish YTD research summary and feasibility warnings
         if: always()
         run: |
           if [ -f reports/year_2026_45_session/summary.md ]; then
             cat reports/year_2026_45_session/summary.md >> "$GITHUB_STEP_SUMMARY"
           else
-            echo '2026 YTD 45-session experiment did not finish. Check the first failed step; no new performance results are available.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Corrected-history 2026 YTD experiment did not finish. Check the first failed step; no new performance results are available.' >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Upload reports, calibration audits and price snapshots
+      - name: Upload reports, feasibility audits, calibration audits and price snapshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: year-2026-45-session-no-amd-${{ github.run_id }}-${{ github.run_attempt }}
+          name: year-2026-45-session-history-fixed-${{ github.run_id }}-${{ github.run_attempt }}
           path: reports/year_2026_45_session/
           if-no-files-found: warn
           retention-days: 14
-      - name: Archive YTD results without overwriting earlier research
+      - name: Archive corrected YTD results without overwriting earlier research
         if: success()
         env:
           REPORT_MARKET: ${{ inputs.market || 'both' }}
@@ -169,10 +167,10 @@ jobs:
                   destination = archive / item.relative_to(source)
                   destination.parent.mkdir(parents=True, exist_ok=True)
                   shutil.copyfile(item,destination)
-          pointer = dict(run_key=key,experiment='2026_ytd_45_session_empirical_targets',
-              entry_start='2026-01-01',max_hold_sessions=45,user_requested_exclusions=['AMD'],exclusion_market='us',
+          pointer = dict(run_key=key,experiment='2026_ytd_45_session_empirical_targets',history_window_fix=True,
+              entry_start='2026-01-01',max_hold_sessions=45,user_requested_exclusions=['AMD','AMZN'],exclusion_market='us',
               market=os.environ.get('REPORT_MARKET','both'),share_mode=os.environ.get('REPORT_SHARE_MODE','fractional'),
-              source_commit='dad7052c9dc33f45ac1143f935035811b3c3da63',workflow_commit=os.environ['GITHUB_SHA'],
+              source_commit='ab8e7af0fac29dd6450468fc14a3f4529b131f7d',workflow_commit=os.environ['GITHUB_SHA'],
               universe_exclusions_json=str(relative/'universe_exclusions.json'),
               results_json=str(relative/'results.json'),summary_markdown=str(relative/'summary.md'))
           (Path(os.environ['PUBLISH_DIR'])/'reports/year_2026_45_session/latest_run.json').write_text(json.dumps(pointer,indent=2)+'\n',encoding='utf-8')
@@ -180,7 +178,7 @@ jobs:
             git -C "$publish_dir" config user.name 'github-actions[bot]'
             git -C "$publish_dir" config user.email 'github-actions[bot]@users.noreply.github.com'
             git -C "$publish_dir" add -f -- "reports/year_2026_45_session/runs/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" reports/year_2026_45_session/latest_run.json
-            git -C "$publish_dir" commit -m "Record AMD-excluded 2026 YTD 45-session run $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT"
+            git -C "$publish_dir" commit -m "Record history-fixed 2026 YTD 45-session run $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT"
             if git -C "$publish_dir" push origin HEAD:refs/heads/experiments/recent-weighted-swing-blend; then
               git worktree remove "$publish_dir"
               exit 0
