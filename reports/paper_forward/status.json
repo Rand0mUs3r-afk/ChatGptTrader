@@ -1,0 +1,44 @@
+{
+  "paper_only": true,
+  "rules": {
+    "version": "paper-forward-v1",
+    "currency": "USD",
+    "initial_equity": 1000.0,
+    "max_hold_sessions": 7,
+    "allocation": 0.25,
+    "risk": 0.015,
+    "slippage": 0.0015,
+    "target_r": 2.0,
+    "quantity": "whole"
+  },
+  "last_session": "2026-10-23",
+  "pending": "2026-10-26",
+  "books": {
+    "compression_family": {
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "realized_net_pnl": 0,
+      "marked_equity": 1000.0,
+      "open_positions": 0,
+      "average_net_pnl": null,
+      "average_win": null,
+      "average_loss": null,
+      "profit_factor": null,
+      "max_marked_drawdown_pct": 0.0
+    },
+    "balanced_blend": {
+      "closed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "realized_net_pnl": 0,
+      "marked_equity": 1000.0,
+      "open_positions": 0,
+      "average_net_pnl": null,
+      "average_win": null,
+      "average_loss": null,
+      "profit_factor": null,
+      "max_marked_drawdown_pct": 0.0
+    }
+  }
+}

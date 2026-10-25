@@ -1,0 +1,1 @@
+model,ticker,entry_date,exit_date,shares,entry_fill,exit_fill,exit_reason,net_pnl,realized_r,held_sessions,plan_hash
