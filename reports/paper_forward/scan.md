@@ -4,7 +4,8 @@ Paper simulation only. Close-qualified setups are conditional, not confirmed ord
 Reference entry below is the signal-day close. Actual simulated entry, quantity and TP use the next-session open.
 Whole shares; independent USD 1,000 starting accounts; no leverage or brokerage orders.
 
-Mode: daily
+Mode: status
+Saved state only: market data was not refreshed.
 Signal session: 2026-10-23
 Planned entry session: 2026-10-26
 Plan frozen at: 2026-10-25 03:09:16.608889+00:00
