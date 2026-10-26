@@ -3,14 +3,11 @@ on:
   workflow_dispatch:
     inputs:
       market:
-        description: 'Reference setup assessment only; existing paper books are unchanged.'
+        description: 'Expanded TSX holdings; existing US universe and paper books unchanged.'
         type: choice
         required: true
         default: both
-        options:
-          - both
-          - us
-          - tsx
+        options: [both, us, tsx]
 permissions:
   contents: read
 concurrency:
@@ -19,172 +16,120 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       SCAN_MARKET: ${{ inputs.market }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Frozen analysis engine
+        uses: actions/checkout@v4
         with:
           ref: f2b5542f892cf1c6f3724ed68d343b4699354541
+          persist-credentials: false
+      - name: Frozen assessed-scan implementation
+        uses: actions/checkout@v4
+        with:
+          ref: 17449e2c0b8c3aa21b866e7522b77f9d09c2689d
+          path: scan-template
+          sparse-checkout: .github/workflows/us-tsx-assessed-setup-scan.yml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Watchlists from this exact workflow commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: watchlist-source
+          sparse-checkout: |
+            config/tickers_tsx.txt
+            config/tsx_holdings_names.csv
+          sparse-checkout-cone-mode: false
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
-          cache-dependency-path: |
-            pyproject.toml
-            requirements.txt
-            requirements-scanner.txt
       - name: Install dependencies
-        run: python -m pip install -e '.[dev]' -r requirements-scanner.txt
-      - name: Run regression tests
+        run: python -m pip install -e '.[dev]' -r requirements-scanner.txt 'PyYAML>=6,<7'
+      - name: Run original regression suite before applying new scan universe
         env:
           FRACTIONAL_SHARES: 'false'
         run: python -m pytest -q
-      - name: Assess US and TSX next-session targets using completed history
+      - name: Validate holdings mapping and run expanded prospective assessment
         run: |
           python - <<'PY'
-          import hashlib
-          import json
-          import math
-          import os
+          import csv,hashlib,io,json,os
           from pathlib import Path
+          from collections import Counter
           import pandas as pd
-          import exchange_calendars as xcals
-          from history_45_session import fetch_daily
-          from paper_forward import clock,latest_complete,label
-          from run_recent_blend import features,candidate,FAMILIES
-          import october_15_session as targets
-          from year_2026_45_session import configured_function
-          from checked_history import PRICE_BASIS
+          import yaml
           from swingbot.scanner import load_tickers
-
-          def supported(check):
-              result=dict(check)
-              if result['target_status']!='EXPERIMENTAL_CANDIDATE':
-                  for key in ('assessed_target','assessed_net_rr','selected_raw_r','calibration_target_hit_pct'):
-                      result[key]=None
-              return result
-
-          def quantity(entry,stop):
-              risk=entry*1.0015-stop*.9985
-              return max(0,min(math.floor(250/(entry*1.0015)),math.floor(15/risk))) if entry>stop>0 and risk>0 else 0
-
-          def shown(value):
-              return '-' if value is None else ('yes' if value else 'no') if isinstance(value,bool) else str(value) if isinstance(value,int) else f'{value:.3f}' if isinstance(value,float) else str(value)
-
-          assert supported(dict(target_status='INSUFFICIENT_WALKFORWARD',assessed_target=110))['assessed_target'] is None
-          assert supported(dict(target_status='EXPERIMENTAL_CANDIDATE',assessed_target=110))['assessed_target']==110
-          assert quantity(100,95)==2 and quantity(1000,990)==0
-          market=os.environ['SCAN_MARKET']
-          if market not in ('us','tsx','both'):
-              raise ValueError('Invalid market')
+          source=Path('watchlist-source/config')
+          rows=list(csv.DictReader((source/'tsx_holdings_names.csv').open(encoding='utf-8')))
+          mapped={r['ticker']:r for r in rows}
+          if len(rows)!=216 or len(mapped)!=216 or Counter(r['source_funds'] for r in rows)!=Counter({'XMD':156,'XIU':60}):
+              raise ValueError('Unexpected or duplicated holdings mapping')
+          for r in rows:
+              if not r['company_name'] or r['ticker']!=r['native_symbol'].replace('.','-')+'.TO' or r['holdings_asof']!='2026-10-23':
+                  raise ValueError('Invalid name, ticker mapping or holdings date')
+          wanted=set(load_tickers(str(source/'tickers_tsx.txt')))
+          original=set(load_tickers('config/tickers_tsx.txt'))
+          if len(wanted)!=225 or not set(mapped)<=wanted or not original<=wanted or any(not t.endswith('.TO') for t in wanted):
+              raise ValueError('Unexpected TSX universe change')
+          Path('config/tickers_tsx.txt').write_text((source/'tickers_tsx.txt').read_text(encoding='utf-8'),encoding='utf-8')
+          path=Path('config/tsx_added_eligibility.csv')
+          with path.open(encoding='utf-8-sig',newline='') as f:
+              reader=csv.DictReader(f);fields=reader.fieldnames;dated=list(reader)
+          for ticker in sorted(wanted-original):
+              dated.append(dict.fromkeys(fields,'')|dict(ticker=ticker,eligible_from='2026-10-26'))
+          with path.open('w',encoding='utf-8',newline='') as f:
+              writer=csv.DictWriter(f,fieldnames=fields,lineterminator='\n');writer.writeheader();writer.writerows(dated)
           out=Path('reports/assessed_setup_scan');out.mkdir(parents=True,exist_ok=True)
-          now=clock();rows=[];profiles=[];coverage={};exclusions=[]
-          weights={g:1/len(FAMILIES) for g in FAMILIES}
-          for venue in (('us','tsx') if market=='both' else (market,)):
-              currency,calendar_name=('USD','XNYS') if venue=='us' else ('CAD','XTSE')
-              calendar=xcals.get_calendar(calendar_name)
-              signal_day=latest_complete(calendar,now)
-              entry_day=label(calendar.next_session(pd.Timestamp(signal_day)))
-              preopen=now<calendar.session_open(pd.Timestamp(entry_day))
-              start=pd.Timestamp(pd.Timestamp(signal_day).year-10,1,1)
-              cutoff=pd.Timestamp(signal_day)+pd.Timedelta(days=1)
-              sessions=calendar.sessions_in_range(start,pd.Timestamp(signal_day))
-              required=pd.DatetimeIndex(sessions[-20:]).tz_localize(None).normalize()
-              tickers=sorted(set(load_tickers('config/tickers.txt' if venue=='us' else 'config/tickers_tsx.txt')))
-              eligibility={}
-              if venue=='us' and {'AMD','AMZN'}&set(tickers):
-                  raise ValueError('Excluded US ticker present')
-              if venue=='tsx':
-                  baseline=set(load_tickers('config/tickers_tsx_october_baseline.txt'))
-                  dated=pd.read_csv('config/tsx_added_eligibility.csv')
-                  eligibility={r.ticker:pd.Timestamp(r.eligible_from) for r in dated.itertuples()}
-                  if any(t not in eligibility for t in set(tickers)-baseline):
-                      raise ValueError('Missing TSX selection eligibility date')
-              modes=(('compression_family',7),('balanced_blend',7)) if venue=='us' else (('compression_family',45),)
-              for mode,hold in modes:
-                  profiles.append(dict(market=venue,currency=currency,strategy=mode,hold_sessions=hold,signal_session=signal_day,entry_session=entry_day,
-                      timing='PREOPEN_REFERENCE_ONLY' if preopen else 'OPEN_ALREADY_PASSED_NOT_ACTIONABLE'))
-              for ticker in tickers:
-                  if ticker in eligibility and eligibility[ticker]>pd.Timestamp(signal_day):
-                      exclusions.append(dict(market=venue,ticker=ticker,reason='NOT_YET_SELECTED_AS_OF_SIGNAL'))
-                      continue
-                  frame=fetch_daily(ticker,start,cutoff,required)
-                  expected=pd.DatetimeIndex(calendar.sessions_in_range(frame.index[0],pd.Timestamp(signal_day))).tz_localize(None).normalize()
-                  if not frame.index.equals(expected):
-                      raise ValueError(f'{ticker}: historical session gaps')
-                  directory=out/venue;directory.mkdir(exist_ok=True)
-                  snapshot=frame.to_csv(index_label='Date')
-                  (directory/f'bars_{ticker}.csv').write_text(snapshot,encoding='utf-8')
-                  coverage[f'{venue}:{ticker}']=dict(requested_start=str(start.date()),first=str(frame.index[0].date()),last=str(frame.index[-1].date()),bars=len(frame),sha256=hashlib.sha256(snapshot.encode()).hexdigest())
-                  cached=features(frame);ref=float(frame.Close.iloc[-1])
-                  for mode,hold in modes:
-                      signal=candidate(cached[-1],mode,weights,False)
-                      if signal is None:
-                          continue
-                      book=configured_function(targets.build_book,HOLD=hold)(frame,cached,mode)
-                      (directory/f'{ticker}_{mode}_h{hold}_calibration.json').write_text(json.dumps(book,indent=2,allow_nan=False),encoding='utf-8')
-                      stop=float(signal['stop'])
-                      check=supported(targets.calibrate(book,len(frame)-1,ref,stop))
-                      highs=frame.High.to_numpy(dtype=float)
-                      levels=[highs[j] for j in range(max(2,len(highs)-60),len(highs)-2) if highs[j]>max(highs[j-2:j]) and highs[j]>max(highs[j+1:j+3]) and highs[j]>ref]
-                      resistance=float(min(levels)) if levels else None
-                      previous=frame.Close.shift()
-                      atr=float(pd.concat([frame.High-frame.Low,(frame.High-previous).abs(),(frame.Low-previous).abs()],axis=1).max(axis=1).iloc[-14:].mean())
-                      tp=check['assessed_target'];shares=quantity(ref,stop)
-                      rows.append(dict(market=venue,currency=currency,strategy=mode,hold_sessions=hold,ticker=ticker,
-                          signal_session=signal_day,entry_session=entry_day,reference_entry=ref,structural_stop=stop,
-                          fixed_2r_control_reference=ref+2*(ref-stop),reference_whole_shares=shares,
-                          sizing_status='REFERENCE_SIZE_AVAILABLE' if shares else 'ZERO_WHOLE_SHARES_AT_REFERENCE',
-                          timing='PREOPEN_REFERENCE_ONLY' if preopen else 'OPEN_ALREADY_PASSED_NOT_ACTIONABLE',
-                          nearest_confirmed_high=resistance,requires_resistance_break=bool(tp is not None and resistance is not None and tp>resistance),
-                          target_distance_atr=(tp-ref)/atr if tp is not None and atr>0 else None,**check))
-              print(f'Completed {venue.upper()} assessment: {signal_day} -> {entry_day}',flush=True)
-          notes=('SETUP ASSESSMENT ONLY: no US paper-state changes, no new TSX persistent account and no orders. '
-              'US compression/balanced use seven-session historical examples; TSX compression uses 45-session examples and CAD reference sizing. '
-              'Fixed-2R columns are controls, not assessed forecasts. Assessed targets require at least 20 completed nonoverlapping same-stock/same-strategy examples, '
-              '10 qualifying walk-forward examples, positive calibration and walk-forward means, and positive modeled net RR. '
-              'Select raw R from [0.5,0.75,1,1.25,1.5,2] using up to 30 earlier calibration examples. These are research rules, not validated optimal parameters. '
-              'Unsupported targets are omitted. Historical hit frequencies are descriptive, not calibrated future probabilities; walk-forward hit rates describe the adaptive policy, not a fixed current target. '
-              'Resistance is a warning, not a mechanical cap or guaranteed barrier. Reference entry is the latest completed close, not a reserved entry price. '
-              'Reassess TP, net RR, sizing and eligibility at the actual next open; late-opening references are not actionable. '
-              'Reference allocation is 25% of an independent 1000-unit market-currency budget, planned risk 1.5%, whole shares, 15 bps/side; no commissions/dividend cash. '
-              'Reference budgets are not read from existing paper-account balances. No trades are recorded by this scanner. '
-              'Current-universe/development bias, raw Yahoo price limitations, daily stop-first fills and gap risk remain. No future bar is used; actual data coverage is disclosed.')
-          report=dict(generated_at=str(now),source_commit='f2b5542f892cf1c6f3724ed68d343b4699354541',workflow_commit=os.environ['GITHUB_SHA'],
-              scan_only=True,price_basis=PRICE_BASIS,notes=notes,profiles=profiles,coverage=coverage,exclusions=exclusions,setups=rows)
-          (out/'assessed_setups.json').write_text(json.dumps(report,indent=2,allow_nan=False),encoding='utf-8')
-          fields=['market','currency','strategy','hold_sessions','ticker','signal_session','entry_session','reference_entry','structural_stop','assessed_target','assessed_net_rr',
-              'reference_whole_shares','sizing_status','timing','historical_examples','walkforward_examples','calibration_target_hit_pct','walkforward_target_hit_pct',
-              'walkforward_mean_net_r','nearest_confirmed_high','requires_resistance_break','target_status','fixed_2r_control_reference']
-          pd.DataFrame(rows,columns=fields).to_csv(out/'assessed_setups.csv',index=False)
-          text='# US and TSX assessed setup scan\n\n'+notes+'\n\n'
-          for profile in profiles:
-              text+=f"## {profile['market'].upper()} / {profile['currency']} / {profile['strategy']} / {profile['hold_sessions']} sessions\n\n"
-              text+=f"Signal: {profile['signal_session']}; next entry session: {profile['entry_session']}; {profile['timing']}.\n\n"
-              subset=[r for r in rows if r['market']==profile['market'] and r['strategy']==profile['strategy']]
-              if not subset:
-                  text+='No qualifying close-based signal.\n\n';continue
-              text+='| Ticker | Ref entry | SL | Assessed TP | Net RR | Ref shares | Past N | WF N | WF policy hit % | WF mean R | Resistance break? | Evidence status |\n'
-              text+='|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|\n'
-              for r in subset:
-                  keys=['ticker','reference_entry','structural_stop','assessed_target','assessed_net_rr','reference_whole_shares','historical_examples','walkforward_examples','walkforward_target_hit_pct','walkforward_mean_net_r','requires_resistance_break','target_status']
-                  text+='| '+' | '.join(shown(r[k]) for k in keys)+' |\n'
-              text+='\nZero reference shares means unaffordable at that reference; an evidence-pass status alone is not trade approval.\n\n'
+          provenance=dict(imported_stock_reit_mappings=216,total_tsx_tickers=225,new_tsx_tickers=len(wanted-original),
+              holdings_asof='2026-10-23',new_selection_eligible_from='2026-10-26',
+              quarantined=[dict(identifier='2299955D',name='CONSTELLATION SOFTWARE INC',reason='WARRANT_IDENTIFIER_NOT_COMMON_STOCK',retained_stock='CSU.TO')],
+              source_file_sha256={'XMD_holdings.csv':'3717bda616226450413029659081329331464185b8f6ec53189536637081d1b5','XIU_holdings.csv':'1afe66ce39bbee2eda114804971536cbf9e82dccc72105720238901ce450bd8c'},
+              names_registry_sha256=hashlib.sha256((source/'tsx_holdings_names.csv').read_bytes()).hexdigest(),
+              effective_tsx_watchlist_sha256=hashlib.sha256(Path('config/tickers_tsx.txt').read_bytes()).hexdigest(),
+              workflow_commit=os.environ['GITHUB_SHA'],us_sp500_expansion_included=False,
+              identity_note='Names/exchange reconciled to uploaded holdings; independent provider identity validation is not claimed. Quotes retain strict validation.')
+          (out/'watchlist_import.json').write_text(json.dumps(provenance,indent=2)+'\n',encoding='utf-8')
+          template=yaml.safe_load(Path('scan-template/.github/workflows/us-tsx-assessed-setup-scan.yml').read_text(encoding='utf-8'))
+          step=next(s for s in template['jobs']['scan']['steps'] if s.get('name')=='Assess US and TSX next-session targets using completed history')
+          run=step['run'];prefix="python - <<'PY'\n"
+          if not run.startswith(prefix):
+              raise ValueError('Unexpected frozen scan template')
+          script=run.split(prefix,1)[1].rsplit('\nPY',1)[0]
+          old='eligibility[ticker]>pd.Timestamp(signal_day)'
+          if script.count(old)!=1:
+              raise ValueError('Unexpected eligibility implementation')
+          script=script.replace(old,'eligibility[ticker]>pd.Timestamp(entry_day)').replace('NOT_YET_SELECTED_AS_OF_SIGNAL','NOT_ELIGIBLE_FOR_ENTRY_SESSION')
+          exec(compile(script,'frozen_assessed_scan','exec'),{'__name__':'__main__'})
+          path=out/'assessed_setups.json';report=json.loads(path.read_text(encoding='utf-8'))
+          note='Expanded TSX source universe: 216 stock/REIT mappings plus retained existing names, 225 unique tickers. One Constellation warrant identifier is quarantined. New additions are eligible from October 26, 2026; US S&P 500 expansion is not included. This changes the research universe, not existing paper-account state.'
+          report['watchlist_import']=provenance;report['notes']=note+' '+report['notes']
+          for r in report['setups']:
+              m=mapped.get(r['ticker']) if r['market']=='tsx' else None
+              r['holdings_company_name']=m['company_name'] if m else None
+              r['holdings_source_funds']=m['source_funds'] if m else None
+          path.write_text(json.dumps(report,indent=2,allow_nan=False),encoding='utf-8')
+          table=pd.read_csv(out/'assessed_setups.csv',keep_default_na=False)
+          table['holdings_company_name']=[mapped.get(t,{}).get('company_name','') for t in table['ticker']]
+          table['holdings_source_funds']=[mapped.get(t,{}).get('source_funds','') for t in table['ticker']]
+          table.to_csv(out/'assessed_setups.csv',index=False)
+          text=(out/'summary.md').read_text(encoding='utf-8')
+          for ticker,r in mapped.items():
+              text=text.replace('| '+ticker+' |','| '+ticker+' / '+r['company_name']+' |')
+          text='# Expanded TSX watchlist\n\n'+note+'\n\n'+text
           (out/'summary.md').write_text(text,encoding='utf-8')
-          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'w',encoding='utf-8') as f:
               f.write(text)
-          print(text)
           PY
-      - name: Mark incomplete assessment as failed
+      - name: Clearly mark incomplete assessments
         if: failure()
-        run: echo 'Assessment did not finish; do not treat partial artifact files as a completed scan. No paper state or brokerage orders were changed.' >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload assessed setups, calibration audits and quote snapshots
+        run: echo 'Expanded assessment failed; partial artifacts are not a completed scan. Existing paper accounts were not changed.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload complete assessment and import audit
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: us-tsx-assessed-setups-${{ github.run_id }}-${{ github.run_attempt }}
+          name: expanded-tsx-assessed-setups-${{ github.run_id }}-${{ github.run_attempt }}
           path: reports/assessed_setup_scan/
           if-no-files-found: warn
           retention-days: 14
