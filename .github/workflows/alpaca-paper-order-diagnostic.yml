@@ -1,0 +1,57 @@
+name: Alpaca paper order diagnostic
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-order:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read BKR sell order without trading
+        env:
+          ALPACA_PAPER_KEY_ID: ${{ secrets.ALPACA_PAPER_KEY_ID }}
+          ALPACA_PAPER_SECRET_KEY: ${{ secrets.ALPACA_PAPER_SECRET_KEY }}
+        run: |
+          python - <<'PY'
+          import http.client
+          import json
+          import os
+          import sys
+
+          def main():
+              key = os.environ.get('ALPACA_PAPER_KEY_ID', '')
+              secret = os.environ.get('ALPACA_PAPER_SECRET_KEY', '')
+              if not key or not secret:
+                  sys.exit('Missing paper credentials; no request sent.')
+              connection = http.client.HTTPSConnection('paper-api.alpaca.markets', timeout=20)
+              try:
+                  connection.request('GET', '/v2/orders/157b2923-452e-4d83-a410-5a4fb7a7db56?nested=true', headers={'APCA-API-KEY-ID': key, 'APCA-API-SECRET-KEY': secret})
+                  response = connection.getresponse()
+                  if response.status != 200:
+                      sys.exit(f'Paper order lookup HTTP {response.status}; body withheld.')
+                  order = json.loads(response.read(1048576))
+              finally:
+                  connection.close()
+              if order.get('id') != '157b2923-452e-4d83-a410-5a4fb7a7db56' or order.get('symbol') != 'BKR' or order.get('side') != 'sell':
+                  sys.exit('Unexpected order identity; response withheld.')
+              fields = ('id', 'client_order_id', 'symbol', 'side', 'type', 'status', 'order_class', 'qty', 'filled_qty', 'filled_avg_price', 'created_at', 'submitted_at', 'filled_at', 'canceled_at')
+              report = {field: order.get(field) for field in fields}
+              report['bot_exit_id_match'] = str(order.get('client_order_id', '')).startswith('fp7v1-exit-')
+              report['note'] = 'An exit ID match identifies the bot exit path, not whether protection failure or the holding limit triggered it.'
+              text = json.dumps(report, indent=2)
+              for credential in (key, secret):
+                  text = text.replace(credential, '[REDACTED]')
+              print(text)
+              if os.environ.get('GITHUB_STEP_SUMMARY'):
+                  with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+                      summary.write('# Read-only BKR sell order diagnostic\n\n    ' + text.replace('\n', '\n    ') + '\n')
+
+          try:
+              main()
+          except Exception:
+              sys.exit('Order diagnostic failed; exception details and broker body withheld.')
+          PY
