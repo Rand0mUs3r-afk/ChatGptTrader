@@ -8,8 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 def entry_window(now, day, session_time):
-    return bool(day and session_time(day,'open') <= now < session_time(day,'close')-pd.Timedelta(minutes=15)
-                and 0 <= (now-session_time(day,'open')).total_seconds()%1800 < 600)
+    return bool(day and session_time(day,'open') <= now < session_time(day,'close'))
 
 def normalized_name(value):
     ignored={'inc','incorporated','corp','corporation','company','co','plc','ltd','limited','common','stock','ordinary','share','shares','class','a','b','de'}
@@ -92,15 +91,19 @@ def selftest():
     assert not engine['same_name']('Incyte Genomics Inc','Incyte Corp. Common Stock')
     day=dict(date='2026-10-27',open='09:30',close='16:00')
     stamp=lambda s:pd.Timestamp('2026-10-27 '+s,tz='America/New_York').tz_convert('UTC')
-    for time,expected in [('09:30',True),('10:00',True),('10:15',False),('16:00',False)]:
+    for time,expected in [('09:29',False),('09:30',True),('10:00',True),('10:15',True),('15:45',True),('15:59',True),('16:00',False)]:
         assert entry_window(stamp(time),day,engine['session_time'])==expected
+    early=dict(day,close='13:00')
+    assert entry_window(stamp('12:59'),early,engine['session_time'])
+    assert not entry_window(stamp('13:00'),early,engine['session_time'])
+    assert not entry_window(stamp('10:00'),None,engine['session_time'])
     row=dict(symbol='TEST',stop=98.,reference=100.)
     quote=dict(bp=99.99,ap=100.,t=stamp('10:00').isoformat())
     body=engine['entry_body'](row,quote,stamp('10:00'),1000.,'test-fixed-2r')
     assert body and 'hybrid' not in row
     assert Decimal(body['take_profit']['limit_price'])-Decimal(body['limit_price'])==2*(Decimal(body['limit_price'])-Decimal(body['stop_loss']['stop_price']))
     assert engine['entry_body'](row,quote,stamp('10:01'),1000.,'stale') is None
-    print('Fixed 2R, no-hybrid entry, stale-quote, name-formatting and half-hour window checks passed')
+    print('Fixed 2R, stale-quote, name-formatting and full-session entry checks passed')
 
 if __name__=='__main__':
     selftest() if '--selftest' in sys.argv else install()['main']()
