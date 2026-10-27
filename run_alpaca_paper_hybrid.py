@@ -24,7 +24,8 @@ def fixed_target(entry, stop):
 
 def install():
     import run_alpaca_paper as base
-    source=Path(base.__file__).read_text(encoding='utf-8')
+    from paper_exit_safety import patch_source
+    source=patch_source(Path(base.__file__).read_text(encoding='utf-8'))
     old="now>session_time(day,'open')+pd.Timedelta(minutes=5)"
     if source.count(old)!=2:
         raise RuntimeError('Unexpected entry/cancellation gates')
