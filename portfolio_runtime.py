@@ -2,7 +2,7 @@
 import json
 import os
 import re
-import portfolio_paper as portfolio
+import portfolio_previous_high as portfolio
 from portfolio_reconciliation import ReconciliationError, reconciled_book
 
 def run():
