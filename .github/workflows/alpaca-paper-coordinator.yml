@@ -3,20 +3,20 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check and scan never submit orders; tick requires explicit paper enablement'
+        description: 'check and scan are read-only; tick may submit PAPER orders'
         type: choice
-        default: check
+        default: tick
         options: [check, scan, tick]
   schedule:
     - cron: '*/5 13-21 * * 1-5'
 permissions:
   contents: read
 concurrency:
-  group: alpaca-paper-coordinator
+  group: alpaca-paper-pilot-account
   cancel-in-progress: false
 jobs:
   paper:
-    if: github.event_name == 'workflow_dispatch' || vars.ALPACA_PAPER_ENABLED == 'true'
+    if: vars.ALPACA_PAPER_KILL_SWITCH != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -40,7 +40,7 @@ jobs:
           ALPACA_PAPER_KEY_ID: ${{ secrets.ALPACA_PAPER_KEY_ID }}
           ALPACA_PAPER_SECRET_KEY: ${{ secrets.ALPACA_PAPER_SECRET_KEY }}
           ALPACA_EXPECTED_PAPER_ACCOUNT_ID: ${{ vars.ALPACA_EXPECTED_PAPER_ACCOUNT_ID }}
-          ALPACA_PAPER_ENABLED: ${{ vars.ALPACA_PAPER_ENABLED || 'false' }}
+          ALPACA_PAPER_ENABLED: 'true'
           ALPACA_PAPER_STRATEGY: ${{ vars.ALPACA_PAPER_STRATEGY || 'compression_family' }}
           ALPACA_DATA_FEED: ${{ vars.ALPACA_DATA_FEED || 'iex' }}
         run: python run_alpaca_paper.py --mode "$RUN_MODE"
