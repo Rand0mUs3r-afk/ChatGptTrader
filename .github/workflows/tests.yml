@@ -1,4 +1,3 @@
-
 name: Python tests
 
 on:
@@ -30,4 +29,4 @@ jobs:
           pip install -e .
 
       - name: Run tests
-        run: pytest -q
+        run: python -m pytest -q
