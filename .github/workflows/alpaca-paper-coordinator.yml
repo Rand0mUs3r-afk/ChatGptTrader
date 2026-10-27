@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check/scan are read-only; tick can submit PAPER orders'
+        description: 'check/scan are read-only; tick can submit PAPER orders with fixed 2R targets'
         type: choice
         default: tick
         options: [check, scan, tick]
@@ -35,24 +35,9 @@ jobs:
         run: python -m pytest -q tests/test_alpaca_paper_bot.py tests/test_alpaca_paper_readiness.py
       - name: Test public source repair
         run: python paper_scan_repair.py --selftest
-      - name: Check hybrid wiring and deterministic target/window mechanics
-        run: |
-          python - <<'PY'
-          import pandas as pd
-          from run_alpaca_paper_hybrid import historical_target, entry_window, install
-          engine=install()
-          bars=[dict(t=f'{i:04d}',o=100,h=103,l=99.5,c=101) for i in range(300)]
-          assert historical_target(bars,.01)['selected_r']==2
-          assert historical_target(bars[:20],.01) is None
-          assert historical_target([dict(b,l=98) for b in bars],.01) is None
-          day=dict(date='2026-10-27',open='09:30',close='16:00')
-          stamp=lambda s: pd.Timestamp('2026-10-27 '+s,tz='America/New_York').tz_convert('UTC')
-          assert entry_window(stamp('09:30'),day,engine['session_time'])
-          assert entry_window(stamp('10:00'),day,engine['session_time'])
-          assert not entry_window(stamp('10:15'),day,engine['session_time'])
-          assert not entry_window(stamp('16:00'),day,engine['session_time'])
-          PY
-      - name: Run hybrid paper coordinator
+      - name: Test fixed 2R, formatting matches and half-hour entry windows
+        run: python run_alpaca_paper_hybrid.py --selftest
+      - name: Run fixed-2R paper coordinator
         env:
           RUN_MODE: ${{ inputs.mode || 'tick' }}
           ALPACA_PAPER_KEY_ID: ${{ secrets.ALPACA_PAPER_KEY_ID }}
