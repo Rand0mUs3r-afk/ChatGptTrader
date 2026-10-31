@@ -142,3 +142,31 @@ These are configurable starting assumptions, not optimized recommendations.
 5. Separate signal generation from order execution.
 6. Do not enable live execution without independent safety checks.
 7. Never commit API keys, passwords or brokerage credentials.
+
+FROM PERPLEXITY OCT 30
+
+## Dated clarification: research baseline and paper execution
+
+The original research documentation above is preserved. The current repository also contains paper-broker, portfolio/reconciliation and exit-safety modules. In particular, the inspected Alpaca paper coordinator is a newer execution path, not merely the original daily scanner. Broker-paper orders are different from hypothetical backtest fills and from real-money orders. This review did not run the coordinator, verify credentials or account identities, inspect broker positions, or establish successful operation or profitability.
+
+## Paper-coordinator configuration inspected
+
+- Workflow: .github/workflows/alpaca-paper-coordinator.yml (Alpaca paper coordinator).
+- Configured cron: */5 13-21 * * 1-5, meaning every five minutes during UTC hours 13 through 21, Monday through Friday.
+- Manual modes: check, scan and tick. The manual and scheduled defaults select tick. The input description identifies a policy of up to nine PAPER positions, 10% allocation and previous-high targets; this is a declared workflow policy, not a verified actual account state.
+- The workflow runs tests/self-tests, loads signal_source at pinned commit f2b5542f892cf1c6f3724ed68d343b4699354541, and invokes python portfolio_runtime.py --mode with the selected mode.
+- The job is gated by vars.ALPACA_PAPER_KILL_SWITCH != 'true'. It passes ALPACA_PAPER_ENABLED as literal 'true', not the same-named repository variable. Do not assume setting that repository variable to false disables this coordinator.
+- Paper credentials, expected account ID, strategy and data-feed values are supplied separately. Their actual values were not inspected.
+- CURRENT ENABLED/DISABLED STATUS: NOT VERIFIED. Workflow source does not establish current workflow activation, repository Actions permissions, kill-switch value, credential validity, or successful scheduled execution.
+
+This repository has additional workflows; the coordinator summary is not an exhaustive inventory of their triggers. In particular, a historical backtest or read-only scan must not be mistaken for broker-paper execution. Review each workflow before dispatching it. Earlier baseline risk defaults above should not automatically be attributed to a newer runner.
+
+## Related projects and manual stop
+
+ChatGptTrader-2K is a related but separate project with its own account/risk design. Other stock-signal repositories also overlap in purpose. Do not assume shared broker accounts, journal state, allocations or risk budgets are safely coordinated.
+
+To stop new coordinator triggers, use Actions > Alpaca paper coordinator > workflow menu > Disable workflow; cancel queued/running runs separately. Other workflows require separate controls. Disabling all Actions in repository settings also stops tests and manual workflows.
+
+Stopping a workflow or setting an entry/execution kill switch does not prove that paper positions were liquidated or broker orders cancelled. It can also stop workflow-managed exit checks. Inspect the paper account and outstanding orders separately.
+
+This append changes documentation only, not code, workflows, enable flags, kill switches, credentials or accounts. Existing push-based CI may run if configured and permitted. This is a dated source-review note, not a continuously updated operational dashboard.
